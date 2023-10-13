@@ -1,9 +1,12 @@
 ProcessingNode:
   ros__parameters:
-    InputList: ["MotorStromEins"]
     Inputs:
       MotorStromEins: ["sensor_data", "data"]
-      MotorStromZwei: ["preprocess_data", "time"]
+    NumberOfInputSamples:
+      MotorStromEins: 100
+    ModelInformation:
+      ModelPath: "/root/mounted_folder/MLDeploy_Nachbau/src/inference_model/inference_model/autoencoder.onnx"
+      ModelInferenceTimerPeriod: 0.5
     Extras:
       Imports: 
         ~
