@@ -1,0 +1,9 @@
+ProcessingNode:
+  ros__parameters:
+    InputList: ["MotorStromEins"]
+    Inputs:
+      MotorStromEins: ["sensor_data", "data"]
+      MotorStromZwei: ["preprocess_data", "time"]
+    Extras:
+      Imports: 
+        ~
