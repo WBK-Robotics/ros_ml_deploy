@@ -15,16 +15,20 @@ class ProcessingNode(Node):
             parameter_file (str, optional): Path to a file where parameters will be saved.
                 If provided, the node will listen to parameter events and save changes.
         """
-        super().__init__('dynamic_parameter_setter')
-
         if not callable(func):
             raise ValueError("`func` must be a callable function.")
 
+        super().__init__('dynamic_parameter_setter')
 
         self.function_to_execute = func
         self._declare_parameters_for_function(func)
 
         if parameter_file is not None:
+            if not isinstance(parameter_file, str):
+                raise ValueError("`parameter_file` must be a string.")
+            if not os.path.exists(parameter_file) or not os.access(parameter_file, os.W_OK):
+                raise ValueError(f"Unable to access the file {parameter_file} for writing.")
+
             self.parameter_event_subscription = self.create_subscription(
                 ParameterEvent,
                 '/parameter_events',
@@ -53,16 +57,20 @@ class ProcessingNode(Node):
         Args:
             file_path (str): Path to the file where parameters should be saved.
         """
+        if not isinstance(file_path, str):
+            self.get_logger().error("`file_path` must be a string.")
+            return
+
         if not os.path.exists(file_path) or not os.access(file_path, os.W_OK):
             self.get_logger().error(f"Unable to access the file {file_path} for writing.")
             return
-        params = {}
-        for param_name in self.declared_parameters():
-            params[param_name] = self.get_parameter(param_name).value
+
+        params = {param_name: self.get_parameter(param_name).value for
+                   param_name in self.declared_parameters()}
 
         with open(file_path, 'w') as file:
-            yaml.dump({"processing_node": {
-                      "ros__parameters": params}}, file)
+            yaml.dump({"processing_node": {"ros__parameters": params}}, file)
+
 
     def _declare_parameters_for_function(self, func):
         """
@@ -71,15 +79,14 @@ class ProcessingNode(Node):
         Args:
             func (function): Function with type annotations to set as parameters.
         """
-        if param_name in self.declared_parameters():
-            self.get_logger().warn(f"Parameter {param_name} is already declared.")
+        if "parameters" not in func.__annotations__:
+            return
 
-        annotations = func.__annotations__
-        if "parameters" in annotations:
-            param_types = annotations["parameters"]
-            for param_name, param_type in param_types.items():
-                # You can also set default values if you want
-                self.declare_parameter(param_name)
+        for param_name, _ in func.__annotations__["parameters"].items():
+            if param_name in self.declared_parameters():
+                self.get_logger().warn(f"Parameter {param_name} is already declared.")
+                continue
+            self.declare_parameter(param_name)
 
     def call_function_with_current_parameters(self):
         """
