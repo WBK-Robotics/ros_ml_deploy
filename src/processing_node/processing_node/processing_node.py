@@ -5,14 +5,13 @@ import yaml
 import os
 
 class ProcessingNode(Node):
-    def __init__(self, func, parameter_file=None):
+    def __init__(self, func,frequency=30):
         """
         Initializes the ProcessingNode with a given function.
 
         Args:
             func (function): Function with type annotations to set as parameters.
-            parameter_file (str, optional): Path to a file where parameters will be saved.
-                If provided, the node will listen to parameter events and save changes.
+            frequency (float): Frequency at which the function should be called.
         """
         if not callable(func):
             raise ValueError("`func` must be a callable function.")
@@ -23,54 +22,8 @@ class ProcessingNode(Node):
         self.declared_parameters = []
         self._declare_parameters_for_function(func)
 
-        if parameter_file is not None:
-            if not isinstance(parameter_file, str):
-                raise ValueError("`parameter_file` must be a string.")
-            if not os.path.exists(parameter_file) or not os.access(parameter_file, os.W_OK):
-                raise ValueError(f"Unable to access the file {parameter_file} for writing.")
-
-            self.parameter_event_subscription = self.create_subscription(
-                ParameterEvent,
-                '/parameter_events',
-                self.parameter_callback,
-                10
-            )
-        self.parameter_file = parameter_file
-
-
-    def parameter_callback(self, msg):
-        """
-        Callback function for parameter change events. If the change event is for this node,
-        the updated parameters will be saved to the provided file.
-
-        Args:
-            msg (ParameterEvent): Message containing parameter change event data.
-        """
-        # Check if the parameter change event is for this node
-        if msg.node == self.get_fully_qualified_name():
-            # Save parameters to a YAML file
-            self._save_parameters_to_file(self.parameter_file)
-
-    def _save_parameters_to_file(self, file_path):
-        """
-        Saves the currently set parameters to a YAML file.
-
-        Args:
-            file_path (str): Path to the file where parameters should be saved.
-        """
-        if not isinstance(file_path, str):
-            self.get_logger().error("`file_path` must be a string.")
-            return
-
-        if not os.path.exists(file_path) or not os.access(file_path, os.W_OK):
-            self.get_logger().error(f"Unable to access the file {file_path} for writing.")
-            return
-
-        params = {param_name: self.get_parameter(param_name).value for
-                   param_name in self.declared_parameters}
-
-        with open(file_path, 'w') as file:
-            yaml.dump({"processing_node": {"ros__parameters": params}}, file)
+        timer_period = 1.0 / frequency
+        self.timer = self.create_timer(timer_period, self.execute_function)
 
 
     def _declare_parameters_for_function(self, func):
@@ -127,6 +80,15 @@ class ProcessingNode(Node):
         else:
             self.get_logger().warn("No function set to execute!")
             return None
+
+
+    def execute_function(self):
+        """
+        This callback is triggered by the ROS timer.
+        """
+        func_input = 10  # Example value, modify as needed
+        result = self.call_function_with_current_parameters(func_input)
+        self.get_logger().info(f"Function result: {result}")
 
 
 TestTypeDict = {"float parameter": float, "int parameter": int}
