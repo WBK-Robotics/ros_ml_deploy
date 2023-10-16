@@ -1,0 +1,4 @@
+processing_node:
+  ros__parameters:
+    "str parameter": "geladener Wert"
+    "int parameter": 7323

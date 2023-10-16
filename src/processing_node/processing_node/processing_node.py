@@ -4,7 +4,7 @@ from rcl_interfaces.msg import ParameterEvent
 import yaml
 
 
-class DynamicParameterSetter(Node):
+class ProcessingNode(Node):
     def __init__(self, func, parameter_file=None):
         super().__init__('dynamic_parameter_setter')
         self.function_to_execute = func
@@ -55,14 +55,17 @@ class DynamicParameterSetter(Node):
             return None
 
 
-def some_function_to_test(parameters: dict):
+test_type_dict = {"str parameter": str, "int parameter": int}
+
+
+def some_function_to_test(parameters: test_type_dict):
     print(parameters)
     return parameters
 
 
 def main():
     rclpy.init()
-    node = DynamicParameterSetter()
+    node = ProcessingNode()
     node.set_function(some_function_to_test)
 
     # Assume for testing, we set some parameters externally (e.g., using `ros2 param set ...`)
