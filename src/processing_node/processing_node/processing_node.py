@@ -1,17 +1,40 @@
 import rclpy
 from rclpy.node import Node
+from rcl_interfaces.msg import ParameterEvent
+import yaml
 
 
 class DynamicParameterSetter(Node):
-    def __init__(self):
+    def __init__(self, func, parameter_file=None):
         super().__init__('dynamic_parameter_setter')
-        self.function_to_execute = None
-
-    def set_function(self, func):
         self.function_to_execute = func
-        self.declare_parameters_for_function(func)
+        self._declare_parameters_for_function(func)
 
-    def declare_parameters_for_function(self, func):
+        if parameter_file is not None:
+            self.parameter_event_subscription = self.create_subscription(
+                ParameterEvent,
+                '/parameter_events',
+                self.parameter_callback,
+                10
+            )
+        self.parameter_file = parameter_file
+
+    def parameter_callback(self, msg):
+        # Check if the parameter change event is for this node
+        if msg.node == self.get_fully_qualified_name():
+            # Save parameters to a YAML file
+            self._save_parameters_to_file(self.parameter_file)
+
+    def _save_parameters_to_file(self, file_path):
+        params = {}
+        for param_name in self.declared_parameters():
+            params[param_name] = self.get_parameter(param_name).value
+
+        with open(file_path, 'w') as file:
+            yaml.dump({"dynamic_parameter_setter": {
+                      "ros__parameters": params}}, file)
+
+    def _declare_parameters_for_function(self, func):
         annotations = func.__annotations__
         if "parameters" in annotations:
             param_types = annotations["parameters"]
