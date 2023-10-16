@@ -6,6 +6,14 @@ import yaml
 
 class ProcessingNode(Node):
     def __init__(self, func, parameter_file=None):
+        """
+        Initializes the ProcessingNode with a given function.
+
+        Args:
+            func (function): Function with type annotations to set as parameters.
+            parameter_file (str, optional): Path to a file where parameters will be saved.
+                If provided, the node will listen to parameter events and save changes.
+        """
         super().__init__('dynamic_parameter_setter')
         self.function_to_execute = func
         self._declare_parameters_for_function(func)
@@ -20,12 +28,25 @@ class ProcessingNode(Node):
         self.parameter_file = parameter_file
 
     def parameter_callback(self, msg):
+        """
+        Callback function for parameter change events. If the change event is for this node,
+        the updated parameters will be saved to the provided file.
+
+        Args:
+            msg (ParameterEvent): Message containing parameter change event data.
+        """
         # Check if the parameter change event is for this node
         if msg.node == self.get_fully_qualified_name():
             # Save parameters to a YAML file
             self._save_parameters_to_file(self.parameter_file)
 
     def _save_parameters_to_file(self, file_path):
+        """
+        Saves the currently set parameters to a YAML file.
+
+        Args:
+            file_path (str): Path to the file where parameters should be saved.
+        """
         params = {}
         for param_name in self.declared_parameters():
             params[param_name] = self.get_parameter(param_name).value
@@ -35,6 +56,12 @@ class ProcessingNode(Node):
                       "ros__parameters": params}}, file)
 
     def _declare_parameters_for_function(self, func):
+        """
+        Declares ROS2 parameters for this node based on a given function's type annotations.
+
+        Args:
+            func (function): Function with type annotations to set as parameters.
+        """
         annotations = func.__annotations__
         if "parameters" in annotations:
             param_types = annotations["parameters"]
@@ -43,6 +70,12 @@ class ProcessingNode(Node):
                 self.declare_parameter(param_name)
 
     def call_function_with_current_parameters(self):
+        """
+        Calls the internally stored function using the currently set parameters.
+
+        Returns:
+            Result of the function call, or None if no function was set.
+        """
         if self.function_to_execute:
             params = {}
             annotations = self.function_to_execute.__annotations__
