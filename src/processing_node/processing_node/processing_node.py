@@ -1,11 +1,8 @@
 import rclpy
 from rclpy.node import Node
 from rcl_interfaces.msg import ParameterEvent
-from rcl_interfaces.msg import ParameterDescriptor, ParameterType
 import yaml
 import os
-from typing import TypedDict
-
 
 class ProcessingNode(Node):
     def __init__(self, func, parameter_file=None):
@@ -126,7 +123,7 @@ class ProcessingNode(Node):
             if "parameters" in annotations:
                 for param_name in annotations["parameters"]:
                     params[param_name] = self.get_parameter(param_name).value
-            return self.function_to_execute(func_input,**params)
+            return self.function_to_execute(func_input,parameters=params)
         else:
             self.get_logger().warn("No function set to execute!")
             return None
@@ -147,9 +144,8 @@ def main():
     while rclpy.ok():
         rclpy.spin_once(node)
         node.call_function_with_current_parameters(1)
-        time.wait(0.5)
 
 
 if __name__ == "__main__":
-    import time
+
     main()
