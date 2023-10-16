@@ -2,6 +2,7 @@ import rclpy
 from rclpy.node import Node
 from rcl_interfaces.msg import ParameterEvent
 import yaml
+import os
 
 
 class ProcessingNode(Node):
@@ -15,6 +16,11 @@ class ProcessingNode(Node):
                 If provided, the node will listen to parameter events and save changes.
         """
         super().__init__('dynamic_parameter_setter')
+
+        if not callable(func):
+            raise ValueError("`func` must be a callable function.")
+
+
         self.function_to_execute = func
         self._declare_parameters_for_function(func)
 
@@ -47,12 +53,15 @@ class ProcessingNode(Node):
         Args:
             file_path (str): Path to the file where parameters should be saved.
         """
+        if not os.path.exists(file_path) or not os.access(file_path, os.W_OK):
+            self.get_logger().error(f"Unable to access the file {file_path} for writing.")
+            return
         params = {}
         for param_name in self.declared_parameters():
             params[param_name] = self.get_parameter(param_name).value
 
         with open(file_path, 'w') as file:
-            yaml.dump({"dynamic_parameter_setter": {
+            yaml.dump({"processing_node": {
                       "ros__parameters": params}}, file)
 
     def _declare_parameters_for_function(self, func):
@@ -62,6 +71,9 @@ class ProcessingNode(Node):
         Args:
             func (function): Function with type annotations to set as parameters.
         """
+        if param_name in self.declared_parameters():
+            self.get_logger().warn(f"Parameter {param_name} is already declared.")
+
         annotations = func.__annotations__
         if "parameters" in annotations:
             param_types = annotations["parameters"]
@@ -79,6 +91,11 @@ class ProcessingNode(Node):
         if self.function_to_execute:
             params = {}
             annotations = self.function_to_execute.__annotations__
+
+            for param_name in annotations["parameters"]:
+                if not self.has_parameter(param_name):
+                    self.get_logger().error(f"Parameter {param_name} is not declared.")
+                    return None
             if "parameters" in annotations:
                 for param_name in annotations["parameters"]:
                     params[param_name] = self.get_parameter(param_name).value
