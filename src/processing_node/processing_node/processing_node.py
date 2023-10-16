@@ -65,15 +65,11 @@ def some_function_to_test(parameters: test_type_dict):
 
 def main():
     rclpy.init()
-    node = ProcessingNode()
-    node.set_function(some_function_to_test)
+    node = ProcessingNode(some_function_to_test)
 
-    # Assume for testing, we set some parameters externally (e.g., using `ros2 param set ...`)
-    # or you can manually set them here for testing purposes
-    rclpy.spin_once(node)
-    node.call_function_with_current_parameters()
-
-    rclpy.shutdown()
+    while not rclpy.is_shutdown():
+        rclpy.spin_once(node)
+        node.call_function_with_current_parameters()
 
 
 if __name__ == "__main__":
