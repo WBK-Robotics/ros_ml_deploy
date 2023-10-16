@@ -1,4 +1,3 @@
-processing_node:
-  ros__parameters:
-    "str parameter": "geladener Wert"
-    "int parameter": 7323
+float parameter: 10.0
+int parameter: 5
+use_sim_time: false

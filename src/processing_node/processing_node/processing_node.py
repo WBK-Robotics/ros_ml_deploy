@@ -141,9 +141,7 @@ def main():
     rclpy.init()
     node = ProcessingNode(some_function_to_test)
 
-    while rclpy.ok():
-        rclpy.spin_once(node)
-        node.call_function_with_current_parameters(1)
+    rclpy.spin(node)
 
 
 if __name__ == "__main__":
