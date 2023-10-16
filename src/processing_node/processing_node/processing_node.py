@@ -89,28 +89,23 @@ class ProcessingNode(Node):
         parameters = func.__annotations__["parameters"]
         rclpy.logging.get_logger("processing_node").info(f"Parameters: {parameters}")
         for param_name, param_type  in parameters.items():
+            if param_type not in [int, float, str, bool]:
+                self.get_logger().error(f"Parameter type {param_type} is not supported.")
+                continue
             if self.has_parameter(param_name):
                 self.get_logger().warn(f"Parameter {param_name} is already declared.")
                 continue
-            descriptor = self._get_parameter_descriptor(param_type)
-            self.declare_parameter(param_name, descriptor=descriptor)
+
+            if param_type == int:
+                self.declare_parameter(param_name, 0)
+            elif param_type == float:
+                self.declare_parameter(param_name, 0.0)
+            elif param_type == str:
+                self.declare_parameter(param_name, "")
+            elif param_type == bool:
+                self.declare_parameter(param_name, False)
+
             self.declared_parameters.append(param_name)
-
-    @staticmethod
-    def _get_parameter_descriptor(param_type):
-        if param_type not in [int, float, str, bool]:
-            raise ValueError(f"Parameter type {param_type} is not supported.")
-
-        descriptor = ParameterDescriptor()
-        if param_type == int:
-            descriptor.type = ParameterType.PARAMETER_INTEGER
-        elif param_type == float:
-            descriptor.type = ParameterType.PARAMETER_DOUBLE
-        elif param_type == str:
-            descriptor.type = ParameterType.PARAMETER_STRING
-        elif param_type == bool:
-            descriptor.type = ParameterType.PARAMETER_BOOL
-        return descriptor
 
 
     def call_function_with_current_parameters(self,func_input):
@@ -151,8 +146,10 @@ def main():
 
     while rclpy.ok():
         rclpy.spin_once(node)
-        node.call_function_with_current_parameters()
+        node.call_function_with_current_parameters(1)
+        time.wait(0.5)
 
 
 if __name__ == "__main__":
+    import time
     main()
