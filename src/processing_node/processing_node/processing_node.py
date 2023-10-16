@@ -3,6 +3,7 @@ from rclpy.node import Node
 from rcl_interfaces.msg import ParameterEvent
 import yaml
 import os
+from typing import TypedDict
 
 
 class ProcessingNode(Node):
@@ -82,13 +83,15 @@ class ProcessingNode(Node):
         if "parameters" not in func.__annotations__:
             return
 
-        for param_name, _ in func.__annotations__["parameters"].items():
+        parameters = func.__annotations__["parameters"]
+
+        for param_name, param_type in parameters.items():
             if param_name in self.declared_parameters():
                 self.get_logger().warn(f"Parameter {param_name} is already declared.")
                 continue
             self.declare_parameter(param_name)
 
-    def call_function_with_current_parameters(self):
+    def call_function_with_current_parameters(self,func_input):
         """
         Calls the internally stored function using the currently set parameters.
 
@@ -106,16 +109,16 @@ class ProcessingNode(Node):
             if "parameters" in annotations:
                 for param_name in annotations["parameters"]:
                     params[param_name] = self.get_parameter(param_name).value
-            return self.function_to_execute(**params)
+            return self.function_to_execute(func_input,**params)
         else:
             self.get_logger().warn("No function set to execute!")
             return None
 
 
-test_type_dict = {"str parameter": str, "int parameter": int}
+TestTypeDict = {"str parameter": str, "int parameter": int}
 
 
-def some_function_to_test(parameters: test_type_dict):
+def some_function_to_test(main_value:int,parameters: TestTypeDict):
     print(parameters)
     return parameters
 
