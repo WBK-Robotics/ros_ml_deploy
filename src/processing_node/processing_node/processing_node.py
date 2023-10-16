@@ -1,8 +1,6 @@
 import rclpy
 from rclpy.node import Node
-from rcl_interfaces.msg import ParameterEvent
-import yaml
-import os
+
 
 class ProcessingNode(Node):
     def __init__(self, func,frequency=30):
@@ -19,12 +17,10 @@ class ProcessingNode(Node):
         super().__init__('processing_node')
 
         self.function_to_execute = func
-        self.declared_parameters = []
         self._declare_parameters_for_function(func)
 
         timer_period = 1.0 / frequency
         self.timer = self.create_timer(timer_period, self.execute_function)
-
 
     def _declare_parameters_for_function(self, func):
         """
@@ -39,23 +35,20 @@ class ProcessingNode(Node):
         parameters = func.__annotations__["parameters"]
         rclpy.logging.get_logger("processing_node").info(f"Parameters: {parameters}")
         for param_name, param_type  in parameters.items():
-            if param_type not in [int, float, str, bool]:
-                self.get_logger().error(f"Parameter type {param_type} is not supported.")
-                continue
             if self.has_parameter(param_name):
                 self.get_logger().warn(f"Parameter {param_name} is already declared.")
                 continue
 
-            if param_type == int:
-                self.declare_parameter(param_name, 0)
-            elif param_type == float:
-                self.declare_parameter(param_name, 0.0)
-            elif param_type == str:
-                self.declare_parameter(param_name, "")
-            elif param_type == bool:
-                self.declare_parameter(param_name, False)
+            default_values = {int: 0,
+                              float: 0.0,
+                              str: "",
+                              bool: False}
 
-            self.declared_parameters.append(param_name)
+            if param_type not in default_values.keys():
+                self.get_logger().error(f"Parameter type {param_type} is not supported.")
+                continue
+
+            self.declare_parameter(param_name, default_values[param_type])
 
 
     def call_function_with_current_parameters(self,func_input):
@@ -65,26 +58,37 @@ class ProcessingNode(Node):
         Returns:
             Result of the function call, or None if no function was set.
         """
-        if self.function_to_execute:
-            params = {}
-            annotations = self.function_to_execute.__annotations__
 
-            for param_name in annotations["parameters"]:
-                if not self.has_parameter(param_name):
-                    self.get_logger().error(f"Parameter {param_name} is not declared.")
-                    return None
-            if "parameters" in annotations:
-                for param_name in annotations["parameters"]:
-                    params[param_name] = self.get_parameter(param_name).value
-            return self.function_to_execute(func_input,parameters=params)
-        else:
+        annotations = self.function_to_execute.__annotations__
+
+        if not self.function_to_execute:
             self.get_logger().warn("No function set to execute!")
             return None
+
+        undeclared_params = [param for param in annotations.get("parameters", [])
+                             if not self.has_parameter(param)]
+        if undeclared_params:
+            params_list = ', '.join(undeclared_params)
+            self.get_logger().error(f"Parameters not declared: {params_list}")
+            return None
+
+        if "paramters" not in annotations:
+            self.get_logger().warn("No parameters declared for function.")
+            return self.function_to_execute(func_input)
+
+        params = {}
+        for param_name in annotations["parameters"]:
+            params[param_name] = self.get_parameter(param_name).value
+        return self.function_to_execute(func_input,parameters=params)
 
 
     def execute_function(self):
         """
-        This callback is triggered by the ROS timer.
+        This callback is triggered by the ROS timer. It calls the internally stored function.
+
+        TODO this is a placeholder to be latter married with marvins code wherin the function inputs
+        are given by the configured subscribers and the function output is published
+        to the configured publishers.
         """
         func_input = 10  # Example value, modify as needed
         result = self.call_function_with_current_parameters(func_input)
