@@ -6,6 +6,7 @@ from ros2topic.api import get_msg_class
 import importlib
 
 from .processing_function_handler import processing_function
+from .training_function_handler import training_function
 
 class ProcessingNode(Node):
 
@@ -27,6 +28,15 @@ class ProcessingNode(Node):
 
         # Create sample number dict
         self.sample_number_dict = self.get_parameters_by_prefix('NumberOfInputSamples')
+
+        # Check if training mode or not
+        self.training_mode = self.get_parameter('Training.TrainingMode').get_parameter_value().bool_value
+
+        # Get Training Sample Multiplier
+        self.training_sample_multiplier = self.get_parameter('Training.TrainingSampleMultiplier').get_parameter_value().integer_value
+
+        # Get Number of Epochs for Training
+        self.number_of_epochs = self.get_parameter('Training.NumberOfEpochs').get_parameter_value().integer_value
 
         # Load the number of samples per input name
         for key in self.sample_number_dict.keys():
@@ -80,19 +90,42 @@ class ProcessingNode(Node):
         if dict_key in self.sample_number_dict:
             # Read the relevant message field and append it to the relevant list in the data dict 
             self.data_dict[dict_key].append(getattr(msg, field_name))
+            # Calculate maximum number of samples in the dict
+            if self.training_mode:
+                maximum_sample_number = self.sample_number_dict[dict_key] * self.training_sample_multiplier
+            else:
+                maximum_sample_number = self.sample_number_dict[dict_key]
             # Ensure that no more than the latest number of samples are in the dict
-            if len(self.data_dict[dict_key]) > self.sample_number_dict[dict_key]:
+            if len(self.data_dict[dict_key]) > maximum_sample_number:
                 self.data_dict[dict_key].pop(0)
             
     def timer_callback(self):
-        # Check if there is enough data in the data dict to run an inference
-        for key in self.sample_number_dict.keys():
-            if not len(self.data_dict[key]) == self.sample_number_dict[key]:
-                self.get_logger().info("Waiting for data")
-            else:
+        # Inference Mode
+        if not self.training_mode:
+            # Check if there is enough data in the data dict to run an inference
+            number_of_features_ready = 0
+            for key in self.sample_number_dict.keys():
+                if not len(self.data_dict[key]) == self.sample_number_dict[key]:
+                    self.get_logger().info("Waiting for data")
+                else:
+                    number_of_features_ready += 1
+
+            if number_of_features_ready == len(self.sample_number_dict.keys()):
                 processing_function(self.data_dict, self.model_path)
-            
-    # TODO: Add training functionality
+
+        # Training Mode
+        else:
+            # Check if there is enough data in the data dict to run training
+            number_of_features_ready = 0
+            for key in self.sample_number_dict.keys():
+                if not len(self.data_dict[key]) == self.sample_number_dict[key] * self.training_sample_multiplier:
+                    self.get_logger().info(f"Waiting for data, {len(self.data_dict[key])} of {self.sample_number_dict[key] * self.training_sample_multiplier}")
+                else:
+                    number_of_features_ready += 1
+
+            if number_of_features_ready == len(self.sample_number_dict.keys()):
+                training_function(self.data_dict, self.model_path, self.training_sample_multiplier, self.number_of_epochs)
+
     # TODO: Make the processing function more generic
 
 def main(args=None):
