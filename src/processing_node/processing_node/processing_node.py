@@ -8,6 +8,8 @@ import importlib
 from .processing_function_handler import processing_function
 from .training_function_handler import training_function
 
+from std_msgs.msg import Float32
+
 class ProcessingNode(Node):
 
     def __init__(self):
@@ -72,7 +74,11 @@ class ProcessingNode(Node):
                         # Toggle bool
                         subscribed = True
                         self.get_logger().info(f"Subscribed to topic {topic_name} which publishes {input_name}")
-        
+
+        # Set up publisher for the model output
+        self.output_publisher = self.create_publisher(Float32, 'loss', 10) 
+        # TODO: Make output publisher customizable with config input
+
         self.get_logger().info("Starting the main processing loop")
 
         # Get model path from config
@@ -111,7 +117,15 @@ class ProcessingNode(Node):
                     number_of_features_ready += 1
 
             if number_of_features_ready == len(self.sample_number_dict.keys()):
-                processing_function(self.data_dict, self.model_path)
+                #  Call processing function
+                processed_data = processing_function(self.data_dict, self.model_path)
+
+                # Publish output
+                # TODO: Make output customizable
+                output_msg = Float32()
+                output_msg.data = float(processed_data)
+                self.output_publisher.publish(output_msg)
+            
 
         # Training Mode
         else:
@@ -123,8 +137,10 @@ class ProcessingNode(Node):
                 else:
                     number_of_features_ready += 1
 
+            # Start training once enough data is collected
             if number_of_features_ready == len(self.sample_number_dict.keys()):
                 training_function(self.data_dict, self.model_path, self.training_sample_multiplier, self.number_of_epochs)
+                self.training_mode = False
 
     # TODO: Make the processing function more generic
 

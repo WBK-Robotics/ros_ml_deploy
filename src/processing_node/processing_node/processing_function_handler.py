@@ -17,6 +17,7 @@ def processing_function(input_dict: dict, model_path: str) -> dict:
     max_input = max(input_list)
     min_input = min(input_list)
     input_list = [(element - min_input) / (max_input - min_input) for element in input_list]
+
     # TODO: Generalize scaling for multiple keys
 
     input_array = np.array(input_list, dtype=np.float32)
@@ -33,6 +34,7 @@ def processing_function(input_dict: dict, model_path: str) -> dict:
     
     loss = np.mean((recon-input_array)**2, axis=2)
 
-    print(loss)
-    #TODO: Add return that makes sense
+    loss = loss[0][0]
+
+    return loss
 

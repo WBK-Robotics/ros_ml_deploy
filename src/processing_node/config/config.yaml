@@ -7,10 +7,12 @@ ProcessingNode:
     ModelInformation:
       ModelPath: "/root/mounted_folder/ros_ml_deploy/src/processing_node/processing_node/autoencoder.onnx"
       ModelInferenceTimerPeriod: 0.5
+    Outputs:
+      Loss: ["model_output", "loss"] 
     Training:
       TrainingMode: False
       TrainingSampleMultiplier: 100
-      NumberOfEpochs: 20
+      NumberOfEpochs: 200
     Extras:
       Imports: 
         ~

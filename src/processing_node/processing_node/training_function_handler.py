@@ -10,11 +10,11 @@ class Autoencoder(nn.Module):
             nn.ReLU(),
             nn.Linear(64, 32),
             nn.ReLU(),
-            nn.Linear(32, 8),
+            nn.Linear(32, 12),
         )
 
         self.decoder = nn.Sequential(
-            nn.Linear(8, 32),
+            nn.Linear(12, 32),
             nn.ReLU(),
             nn.Linear(32, 64),
             nn.ReLU(),
@@ -33,7 +33,7 @@ def training_function(input_dict: dict, model_path: str, training_sample_multipl
     # Fill the input list with data 
     for key in input_dict.keys():
         input_list += input_dict[key]
-    
+
     # Scale Data
     max_input = max(input_list)
     min_input = min(input_list)
