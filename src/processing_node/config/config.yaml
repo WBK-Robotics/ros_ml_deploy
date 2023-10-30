@@ -1,15 +1,16 @@
-ProcessingNode:
-  ros__parameters:
-    Inputs:
-      MotorStromEins: ["sensor_data", "data"]
-    NumberOfInputSamples:
-      MotorStromEins: 100
-    ModelInformation:
-      ModelPath: "/root/mounted_folder/ros_ml_deploy/src/processing_node/processing_node/autoencoder.onnx"
-      ModelInferenceTimerPeriod: 0.5
-    Outputs:
-      Loss: ["model_output", "loss"] 
-    Extras:
-      Imports: 
-        ~
+Inputs:
+  MotorStromEins:
+    Name: "Motorstrom 1"
+    topic: ["sensor_data", "data"]
+ModelInformation:
+  ModelPath: "/root/mounted_folder/ros_ml_deploy/src/processing_node/processing_node/autoencoder.onnx"
+  ModelInferenceTimerPeriod: 0.5
+Outputs:
+  Loss: 
+    Name: "Loss"
+    topic: ["model_output", "loss"] 
+    MessageType: "Float32"
+Extras:
+  Imports: 
+    ~
       
