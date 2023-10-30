@@ -83,11 +83,7 @@ class ProcessingNode(Node):
 
         for key in config['Inputs']:
             topic = config['Inputs'][key]['topic'][0]
-            field = ''
-            for count, sub in enumerate(config['Inputs'][key]['topic'][1:]):
-                if 0 < count < len(config['Inputs'][key]['topic'])-1:
-                    field += '.'
-                field += sub
+            field = config['Inputs'][key]['topic'][1:]
             if topic not in topic_dict:
                 topic_dict[topic] = {key: field}
             else:
@@ -146,9 +142,14 @@ class ProcessingNode(Node):
         """
 
         # Read the relevant message field and append it to the relevant list in the data dict
-        for input in self.data_dict.keys():
+        for input in field_names.keys():
+            # Loop over attributes to reach deeper message levels until the actual data is reached
+            base = msg
+            for i in range(len(field_names[input])):
+                attribute = field_names[input][i]
+                base = getattr(base, attribute)
             # Does not work with append for whatever reason
-            self.data_dict[input] = self.data_dict[input] + [getattr(msg, field_names[input])]
+            self.data_dict[input] = self.data_dict[input] + [base]
             
     def timer_callback(self):
         """
