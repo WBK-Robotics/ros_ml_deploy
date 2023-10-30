@@ -9,10 +9,6 @@ ProcessingNode:
       ModelInferenceTimerPeriod: 0.5
     Outputs:
       Loss: ["model_output", "loss"] 
-    Training:
-      TrainingMode: False
-      TrainingSampleMultiplier: 100
-      NumberOfEpochs: 200
     Extras:
       Imports: 
         ~
