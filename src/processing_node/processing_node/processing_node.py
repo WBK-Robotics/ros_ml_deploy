@@ -72,7 +72,7 @@ class ProcessingNode(Node):
             self.get_logger().error(f"Parameters not declared: {params_list}")
             return None
 
-        if "paramters" not in annotations:
+        if "parameters" not in annotations:
             self.get_logger().warn("No parameters declared for function.")
             return self.function_to_execute(func_input)
 
