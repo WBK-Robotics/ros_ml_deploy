@@ -8,17 +8,34 @@ import yaml
 import importlib
 
 from .processing_function_handler import processing_function
+from .training_function_handler import training_function
 
 from std_msgs.msg import Float32
 
 class ProcessingNode(Node):
 
-    def __init__(self):
+    def __init__(self, func, frequency):
+        """
+        Initializes the ProcessingNode with a given function.
+
+        Args:
+            func (function): Function with type annotations to set as parameters.
+            frequency (float): Frequency at which the function should be called.
+        """
+        if not callable(func):
+            raise ValueError("'func' must be a callable function.")
+
         super().__init__('ProcessingNode')
 
-        config_path = sys.argv[1]
+        try:
+            config_path = sys.argv[1]
 
-        config = self.loadConfig(config_path)
+            config = self.loadConfig(config_path)
+        except:
+            self.get_logger().error("Please specify valid config path")
+            rclpy.shutdown()
+            return
+
 
         # Create data dict which carries the input data
         self.data_dict = dict.fromkeys(config['Inputs'].keys(), [])
@@ -37,14 +54,74 @@ class ProcessingNode(Node):
 
         self.get_logger().info("Starting the main processing loop")
 
-        # Get model path from config
-        self.model_path = config['ModelInformation']['ModelPath']
+        self.function_to_execute = func
+        self._declare_parameters_for_function(func)
 
         # Get model inference timer period from config
-        inference_timer_period = float(config['ModelInformation']['ModelInferenceTimerPeriod'])
+        timer_period = 1.0/frequency
 
         # Create timer that calls the processing function based on a timer period specified in the config
-        self.processing_timer = self.create_timer(inference_timer_period, self.timer_callback)
+        self.timer = self.create_timer(timer_period, self.execute_function)
+    
+    def _declare_parameters_for_function(self, func):
+        """
+        Declares ROS2 parameters for this node based on a given function's type annotations.
+
+        Args:
+            func (function): Function with type annotations to set as parameters.
+        """
+
+        if "parameters" not in func.__annotations__:
+            return
+
+        parameters = func.__annotations__["parameters"]
+        rclpy.logging.get_logger("processing_node").info(f"Parameters: {parameters}")
+        for param_name, param_type  in parameters.items():
+            if self.has_parameter(param_name):
+                self.get_logger().warn(f"Parameter {param_name} is already declared.")
+                continue
+
+            default_values = {int: 0,
+                              float: 0.0,
+                              str: "",
+                              bool: False}
+
+            if param_type not in default_values.keys():
+                self.get_logger().error(f"Parameter type {param_type} is not supported.")
+                continue
+
+            self.declare_parameter(param_name, default_values[param_type])
+    
+    def call_function_with_current_parameters(self, func_input):
+        """
+        Calls the internally stored function using the currently set parameters.
+
+        Returns:
+            Result of the function call, or None if no function was set.
+        """
+
+        annotations = self.function_to_execute.__annotations__
+
+        if not self.function_to_execute:
+            self.get_logger().warn("No function set to execute!")
+            return None
+
+        undeclared_params = [param for param in annotations.get("parameters", [])
+                             if not self.has_parameter(param)]
+        if undeclared_params:
+            params_list = ', '.join(undeclared_params)
+            self.get_logger().error(f"Parameters not declared: {params_list}")
+            return None
+
+        if "parameters" not in annotations:
+            self.get_logger().warn("No parameters declared for function.")
+            return self.function_to_execute(func_input)
+
+        params = {}
+        for param_name in annotations["parameters"]:
+            params[param_name] = self.get_parameter(param_name).value
+        return self.function_to_execute(func_input,parameters=params)
+
     
     def loadConfig(self, config_path):
         """
@@ -57,16 +134,10 @@ class ProcessingNode(Node):
             config dict
         """
 
-        try:
-            # Get dict of inputs from parameters
-            with open(config_path, 'r') as file:
-                config = yaml.safe_load(file)
-            return config
-
-        except:
-            self.get_logger().error("Please specify valid config path")
-            rclpy.shutdown()
-            return
+        # Get dict of inputs from parameters
+        with open(config_path, 'r') as file:
+            config = yaml.safe_load(file)
+        return config
         
     def mapInputNamesToTopics(self, config):
         """
@@ -151,13 +222,13 @@ class ProcessingNode(Node):
             # Does not work with append for whatever reason
             self.data_dict[input] = self.data_dict[input] + [base]
             
-    def timer_callback(self):
+    def execute_function(self):
         """
         Function that is called on a timer and sends collected input data to the processing function aswell as publish the resulting output
         """
 
         #  Call processing function
-        processed_data = processing_function(self.data_dict, self.model_path)
+        processed_data = self.call_function_with_current_parameters(self.data_dict)
 
         # Reset data dict
         self.data_dict = dict.fromkeys(self.data_dict.keys(), [])
@@ -174,7 +245,7 @@ class ProcessingNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = ProcessingNode()
+    node = ProcessingNode(processing_function, 2)
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()

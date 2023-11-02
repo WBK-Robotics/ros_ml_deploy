@@ -2,9 +2,6 @@ Inputs:
   MotorStromEins:
     Name: "Motorstrom 1"
     topic: ["sensor_data", "data"]
-ModelInformation:
-  ModelPath: "/root/mounted_folder/ros_ml_deploy/src/processing_node/processing_node/autoencoder.onnx"
-  ModelInferenceTimerPeriod: 0.5
 Outputs:
   Loss: 
     Name: "Loss"
