@@ -35,7 +35,10 @@ class ProcessingNode(Node):
             self.get_logger().error("Please specify valid config path")
             rclpy.shutdown()
             return
-
+        
+        self.supported_message_types_to_publish = {
+            'Float32': Float32,
+        }
 
         # Create data dict which carries the input data
         self.data_dict = dict.fromkeys(config['Inputs'].keys(), [])
@@ -44,13 +47,11 @@ class ProcessingNode(Node):
 
         self.get_logger().info("Setting up subscriptions")
 
-        topic_dict = self.mapInputNamesToTopics(config)
+        input_topic_dict, output_topic_dict = self.mapInputAndOutputNamesToTopics(config)
 
-        self.setUpSubscriptions(topic_dict, config)
+        self.setUpSubscriptions(input_topic_dict, config)
 
-        # Set up publisher for the model output
-        self.output_publisher = self.create_publisher(Float32, 'loss', 10) 
-        # TODO: Make output publisher customizable with config input
+        self.publisher_dict = self.setUpPublishers(output_topic_dict)
 
         self.get_logger().info("Starting the main processing loop")
 
@@ -120,6 +121,7 @@ class ProcessingNode(Node):
         params = {}
         for param_name in annotations["parameters"]:
             params[param_name] = self.get_parameter(param_name).value
+
         return self.function_to_execute(func_input,parameters=params)
 
     
@@ -139,37 +141,49 @@ class ProcessingNode(Node):
             config = yaml.safe_load(file)
         return config
         
-    def mapInputNamesToTopics(self, config):
+    def mapInputAndOutputNamesToTopics(self, config):
         """
-        Load the actual mappings of input names
+        Load the actual mappings of input and output names
 
         Args:
-            config (dict): Config dict that specifies requested inputs and relevant information about those inputs
+            config (dict): Config dict that specifies requested inputs and outputs and relevant information about those inputs and outputs
         
         Returns:
-            topic dict specifying which topics to subscribe to and what fields of those topics are carrying which input information
+            input topic dict specifying which topics to subscribe to and what fields of those topics are carrying which input information
+            output topic dict specifying which topics to publish and what fields of those topics carry what information
         """
 
-        topic_dict = {}
+        input_topic_dict = {}
+        output_topic_dict = {}
 
         for key in config['Inputs']:
             topic = config['Inputs'][key]['topic'][0]
             field = config['Inputs'][key]['topic'][1:]
-            if topic not in topic_dict:
-                topic_dict[topic] = {key: field}
+            if topic not in input_topic_dict:
+                input_topic_dict[topic] = {key: field}
             else:
-                topic_dict[topic][key] = field
+                input_topic_dict[topic][key] = field
         
-        return topic_dict
+        for key in config['Outputs']:
+            topic = config['Outputs'][key]['topic'][0]
+            field = config['Outputs'][key]['topic'][1:]
+            if topic not in output_topic_dict:
+                output_topic_dict[topic] = {key: field}
+                output_topic_dict[topic]['MessageType'] = config['Outputs'][key]['MessageType']
+            else:
+                output_topic_dict[topic][key] = field
+        
+        return input_topic_dict, output_topic_dict
     
     def importNeededModules(self, config):
         """
         Imports Modules specified in config dict, possibly needed for output message types
+        Also adds the imported modules to the supported messsage types for output dict
 
         Args:
             config (dict): Config dict that specifies which modules to import from where
         """
-
+        #TODO: Add feature that adds imported modules to the supported message type dict
         try:
             import_dict = config['Extras']['Imports']
             for to_import in import_dict.keys():
@@ -202,6 +216,35 @@ class ProcessingNode(Node):
                         # Toggle bool
                         subscribed = True
                         self.get_logger().info(f"Subscribed to topic {topic_name} which publishes {[config['Inputs'][i]['Name'] for i in topic_dict[topic_name]]}")
+    
+    def setUpPublishers(self, topic_dict):
+        """
+        Sets up publishers according to the outputs specified in the config
+
+        Args:
+            topic_dict(dict): dict that contains 
+        
+        Returns:
+            output dict specifying the publisher for each publishable output and in what field of the message to publish which output
+        """
+
+        topics_to_publish_dict = {}
+
+        for topic_name in topic_dict.keys():
+            messageTypeString = topic_dict[topic_name]['MessageType']
+            if messageTypeString not in self.supported_message_types_to_publish:
+                self.get_logger.warn(f'Topic name {topic_name} cannot be published, Message Type is unknown')
+            else:
+                topics_to_publish_dict[topic_name] = {'Publisher': self.create_publisher(self.supported_message_types_to_publish[messageTypeString], topic_name, 10)}
+            
+                topics_to_publish_dict[topic_name]['MessageType'] = messageTypeString
+                topics_to_publish_dict[topic_name]['Fields'] = {}
+                
+                for key in topic_dict[topic_name]:
+                    if key != 'MessageType':
+                        topics_to_publish_dict[topic_name]['Fields'][key] = topic_dict[topic_name][key]
+        
+        return topics_to_publish_dict
 
     def listener_callback(self, msg, field_names):
         """
@@ -234,13 +277,22 @@ class ProcessingNode(Node):
         self.data_dict = dict.fromkeys(self.data_dict.keys(), [])
 
         # Publish output
-        # TODO: Make output customizable
-        try:
-            output_msg = Float32()
-            output_msg.data = float(processed_data)
-            self.output_publisher.publish(output_msg)
-        except:
-            pass
+        if processed_data:
+            for topic in self.publisher_dict:
+                output_msg = Float32()
+                for output in self.publisher_dict[topic]['Fields']:
+                    try:
+                        field = self.publisher_dict[topic]['Fields'][output]
+                        base = output_msg
+                        attribute = field[0]
+                        for i in range(1, len(field)-1):
+                            base = getattr(base, attribute)
+                            attribute = field[i]
+                        setattr(base, attribute, processed_data[output]) 
+                    except:
+                        self.get_logger().warn(f'Output {output} not found in model output or wrong data type')
+                self.publisher_dict[topic]['Publisher'].publish(output_msg)
+
 
 
 def main(args=None):

@@ -5,7 +5,7 @@ Inputs:
 Outputs:
   Loss: 
     Name: "Loss"
-    topic: ["model_output", "loss"] 
+    topic: ["loss", "data"] 
     MessageType: "Float32"
 Extras:
   Imports: 

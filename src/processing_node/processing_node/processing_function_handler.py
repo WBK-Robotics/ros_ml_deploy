@@ -45,6 +45,8 @@ def processing_function(input_dict: dict, parameters: ParameterDict) -> dict:
     loss = np.mean((recon-input_array)**2, axis=2)
 
     loss = loss[0][0]
+
+    return_dict = {'Loss': float(loss)}
     
-    return loss
+    return return_dict
 
