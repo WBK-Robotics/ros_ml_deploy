@@ -14,7 +14,7 @@ from std_msgs.msg import Float32
 
 class ProcessingNode(Node):
 
-    def __init__(self, func, frequency):
+    def __init__(self, func, frequency=30):
         """
         Initializes the ProcessingNode with a given function.
 
@@ -23,9 +23,9 @@ class ProcessingNode(Node):
             frequency (float): Frequency at which the function should be called.
         """
         if not callable(func):
-            raise ValueError("'func' must be a callable function.")
+            raise ValueError("`func` must be a callable function.")
 
-        super().__init__('ProcessingNode')
+        super().__init__('processing_node')
 
         try:
             config_path = sys.argv[1]
@@ -58,7 +58,7 @@ class ProcessingNode(Node):
         self._declare_parameters_for_function(func)
 
         # Get model inference timer period from config
-        timer_period = 1.0/frequency
+        timer_period = 1.0 / frequency
 
         # Create timer that calls the processing function based on a timer period specified in the config
         self.timer = self.create_timer(timer_period, self.execute_function)
@@ -92,7 +92,7 @@ class ProcessingNode(Node):
 
             self.declare_parameter(param_name, default_values[param_type])
     
-    def call_function_with_current_parameters(self, func_input):
+    def call_function_with_current_parameters(self,func_input):
         """
         Calls the internally stored function using the currently set parameters.
 
