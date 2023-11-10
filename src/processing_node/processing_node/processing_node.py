@@ -67,7 +67,6 @@ class ProcessingNode(Node):
         Args:
             func (function): Function with type annotations to set as parameters.
         """
-
         if "parameters" not in func.__annotations__:
             return
 
