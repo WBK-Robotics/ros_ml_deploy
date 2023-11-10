@@ -19,8 +19,6 @@ setup(
     license='MIT',
     tests_require=['pytest'],
     entry_points={
-        'console_scripts': [
-            'processor = processing_node.processing_node:main'
-        ],
+        'console_scripts': ['processing_node_test = processing_node.processing_node:main'],
     },
 )
