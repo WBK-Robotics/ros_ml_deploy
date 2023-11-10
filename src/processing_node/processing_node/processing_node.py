@@ -10,7 +10,7 @@ from std_msgs.msg import *
 
 class ProcessingNode(Node):
 
-    def __init__(self, func, frequency=30):
+    def __init__(self, func,frequency=30):
         """
         Initializes the ProcessingNode with a given function.
 
