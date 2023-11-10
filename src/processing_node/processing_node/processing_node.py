@@ -10,7 +10,7 @@ import importlib
 from .processing_function_handler import processing_function
 from .training_function_handler import training_function
 
-from std_msgs.msg import Float32
+from std_msgs.msg import *
 
 class ProcessingNode(Node):
 
@@ -222,7 +222,7 @@ class ProcessingNode(Node):
         Sets up publishers according to the outputs specified in the config
 
         Args:
-            topic_dict(dict): dict that contains 
+            topic_dict(dict): dict that contains information about the topics to be published
         
         Returns:
             output dict specifying the publisher for each publishable output and in what field of the message to publish which output
@@ -279,7 +279,8 @@ class ProcessingNode(Node):
         # Publish output
         if processed_data:
             for topic in self.publisher_dict:
-                output_msg = Float32()
+                message_type = self.supported_message_types_to_publish[self.publisher_dict[topic]['MessageType']]
+                output_msg = message_type()
                 for output in self.publisher_dict[topic]['Fields']:
                     try:
                         field = self.publisher_dict[topic]['Fields'][output]
