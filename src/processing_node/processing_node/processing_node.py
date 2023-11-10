@@ -1,4 +1,3 @@
-from concurrent.futures import process
 import rclpy
 from rclpy.node import Node
 from ros2topic.api import get_msg_class
@@ -6,9 +5,6 @@ from ros2topic.api import get_msg_class
 import sys
 import yaml
 import importlib
-
-from .processing_function_handler import processing_function
-from .training_function_handler import training_function
 
 from std_msgs.msg import *
 
@@ -294,11 +290,16 @@ class ProcessingNode(Node):
                         self.get_logger().warn(f'Output {output} not found in model output or wrong data type')
                 self.publisher_dict[topic]['Publisher'].publish(output_msg)
 
+TestTypeDict = {"float parameter": float, "int parameter": int}
+
+def some_function_to_test(main_value:int,parameters: TestTypeDict):
+    print(parameters)
+    return parameters
 
 
 def main(args=None):
-    rclpy.init(args=args)
-    node = ProcessingNode(processing_function, 2)
+    rclpy.init()
+    node = ProcessingNode(some_function_to_test)
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
