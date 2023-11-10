@@ -6,8 +6,6 @@ import sys
 import yaml
 import importlib
 
-from std_msgs.msg import *
-
 class ProcessingNode(Node):
 
     def __init__(self, func,frequency=30):
@@ -32,9 +30,7 @@ class ProcessingNode(Node):
             rclpy.shutdown()
             return
         
-        self.supported_message_types_to_publish = {
-            'Float32': Float32,
-        }
+        self.supported_message_types_to_publish = {}
 
         # Create data dict which carries the input data
         self.data_dict = dict.fromkeys(config['Inputs'].keys(), [])
@@ -178,13 +174,15 @@ class ProcessingNode(Node):
         Args:
             config (dict): Config dict that specifies which modules to import from where
         """
-        #TODO: Add feature that adds imported modules to the supported message type dict
         try:
             import_dict = config['Extras']['Imports']
             for to_import in import_dict.keys():
-                import_list = import_dict[to_import]
-                importlib.import_module(import_list[0], import_list[1])
+                package = import_dict[to_import]["Package"]
+                module = import_dict[to_import]["Module"]
+                messageTypeClass = getattr(importlib.import_module(package), module)
+                self.supported_message_types_to_publish[to_import] = messageTypeClass
         except:
+            self.get_logger().warn("Import failed!")
             pass
     
     def setUpSubscriptions(self, topic_dict, config):
@@ -228,7 +226,7 @@ class ProcessingNode(Node):
         for topic_name in topic_dict.keys():
             messageTypeString = topic_dict[topic_name]['MessageType']
             if messageTypeString not in self.supported_message_types_to_publish:
-                self.get_logger.warn(f'Topic name {topic_name} cannot be published, Message Type is unknown')
+                self.get_logger().warn(f'Topic name {topic_name} cannot be published, Message Type is unknown')
             else:
                 topics_to_publish_dict[topic_name] = {'Publisher': self.create_publisher(self.supported_message_types_to_publish[messageTypeString], topic_name, 10)}
             

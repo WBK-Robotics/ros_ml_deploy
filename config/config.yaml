@@ -8,6 +8,8 @@ Outputs:
     topic: ["loss", "data"] 
     MessageType: "Float32"
 Extras:
-  Imports: 
-    ~
+  Imports:
+    Float32:
+      Package: "std_msgs.msg"
+      Module: "Float32"
       
