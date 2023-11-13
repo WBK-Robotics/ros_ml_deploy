@@ -1,12 +1,13 @@
 Inputs:
   MotorStromEins:
     Name: "Motorstrom 1"
-    topic: ["sensor_data", "data"]
+    Topic: "sensor_data"
+    Field: ["data"]
 Outputs:
   Loss: 
     Name: "Loss"
-    topic: "CoolesTopic"
-    field: ["loss", "loss"]
+    Topic: "CoolesTopic"
+    Field: ["loss", "loss"]
     MessageType: "Sensordata"
 Extras:
   Imports:

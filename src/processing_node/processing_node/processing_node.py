@@ -148,16 +148,16 @@ class ProcessingNode(Node):
         output_topic_dict = {}
 
         for key in config['Inputs']:
-            topic = config['Inputs'][key]['topic'][0]
-            field = config['Inputs'][key]['topic'][1:]
+            topic = config['Inputs'][key]['Topic']
+            field = config['Inputs'][key]['Field']
             if topic not in input_topic_dict:
                 input_topic_dict[topic] = {key: field}
             else:
                 input_topic_dict[topic][key] = field
         
         for key in config['Outputs']:
-            topic = config['Outputs'][key]['topic']
-            field = config['Outputs'][key]['field']
+            topic = config['Outputs'][key]['Topic']
+            field = config['Outputs'][key]['Field']
             if topic not in output_topic_dict:
                 output_topic_dict[topic] = {key: field}
                 output_topic_dict[topic]['MessageType'] = config['Outputs'][key]['MessageType']
