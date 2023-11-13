@@ -1,17 +1,17 @@
 Inputs:
-  MotorStromEins:
-    Name: "Motorstrom 1"
+  Motorstrom 1:
+    Description: "Beispielsweise Strom, der den Greifer versorgt"
     Topic: "sensor_data"
     Field: ["data"]
 Outputs:
-  Loss: 
-    Name: "Loss"
+  float parameter: 
+    Description: "Parameter that controls absolutely nothing"
     Topic: "CoolesTopic"
-    Field: ["loss", "loss"]
-    MessageType: "Sensordata"
+    Field: ["data"]
+    MessageType: "Float32"
 Extras:
   Imports:
-    Sensordata:
-      Package: "custom_messages.msg"
-      Module: "Sensordata"
+    Float32:
+      Package: "std_msgs.msg"
+      Module: "Float32"
       

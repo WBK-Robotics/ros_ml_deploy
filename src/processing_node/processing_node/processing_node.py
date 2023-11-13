@@ -208,7 +208,7 @@ class ProcessingNode(Node):
                         self.create_subscription(msg_type, topic_tuple[0], lambda msg, field_names=topic_dict[topic_name] : self.listener_callback(msg, field_names), 10)
                         # Toggle bool
                         subscribed = True
-                        self.get_logger().info(f"Subscribed to topic {topic_name} which publishes {[config['Inputs'][i]['Name'] for i in topic_dict[topic_name]]}")
+                        self.get_logger().info(f"Subscribed to topic {topic_name} which publishes {[i for i in topic_dict[topic_name]]}")
     
     def setUpPublishers(self, topic_dict):
         """
@@ -296,7 +296,7 @@ class ProcessingNode(Node):
                         self.get_logger().warn(f'Output {output} not found in model output or wrong data type')
                 self.publisher_dict[topic]['Publisher'].publish(output_msg)
 
-TestTypeDict = {"float parameter": float, "int parameter": int, "Loss": float}
+TestTypeDict = {"float parameter": float, "int parameter": int}
 
 def some_function_to_test(main_value:int, parameters: TestTypeDict):
     print(parameters)
