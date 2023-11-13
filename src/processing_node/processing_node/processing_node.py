@@ -42,7 +42,7 @@ class ProcessingNode(Node):
         input_topic_dict, output_topic_dict = self.mapInputAndOutputNamesToTopics(config)
 
         self.setUpSubscriptions(input_topic_dict, config)
-
+        # TODO: Refer with Jan about whether or not to use the "name" field in the config for information carrying (i.e. as a key in the dicts) or for user feedback only
         self.publisher_dict = self.setUpPublishers(output_topic_dict)
 
         self.get_logger().info("Starting the main processing loop")
@@ -156,8 +156,8 @@ class ProcessingNode(Node):
                 input_topic_dict[topic][key] = field
         
         for key in config['Outputs']:
-            topic = config['Outputs'][key]['topic'][0]
-            field = config['Outputs'][key]['topic'][1:]
+            topic = config['Outputs'][key]['topic']
+            field = config['Outputs'][key]['field']
             if topic not in output_topic_dict:
                 output_topic_dict[topic] = {key: field}
                 output_topic_dict[topic]['MessageType'] = config['Outputs'][key]['MessageType']
@@ -238,6 +238,19 @@ class ProcessingNode(Node):
                         topics_to_publish_dict[topic_name]['Fields'][key] = topic_dict[topic_name][key]
         
         return topics_to_publish_dict
+    
+    def setNestedAttribute(self, object, part_list, new_value):
+        final_attribute_index = len(part_list)-1
+        current_attribute = object
+        i = 0
+        for part in part_list:
+            new_attribute = getattr(current_attribute, part)
+            if i == final_attribute_index:
+                setattr(current_attribute, part, new_value)
+            current_attribute = new_attribute
+            i += 1
+
+        return object
 
     def listener_callback(self, msg, field_names):
         """
@@ -275,21 +288,17 @@ class ProcessingNode(Node):
                 message_type = self.supported_message_types_to_publish[self.publisher_dict[topic]['MessageType']]
                 output_msg = message_type()
                 for output in self.publisher_dict[topic]['Fields']:
+                    field = self.publisher_dict[topic]['Fields'][output]
                     try:
-                        field = self.publisher_dict[topic]['Fields'][output]
-                        base = output_msg
-                        attribute = field[0]
-                        for i in range(1, len(field)-1):
-                            base = getattr(base, attribute)
-                            attribute = field[i]
-                        setattr(base, attribute, processed_data[output]) 
+                        data = processed_data[output]
+                        output_msg = self.setNestedAttribute(output_msg, field, data)
                     except:
                         self.get_logger().warn(f'Output {output} not found in model output or wrong data type')
                 self.publisher_dict[topic]['Publisher'].publish(output_msg)
 
-TestTypeDict = {"float parameter": float, "int parameter": int}
+TestTypeDict = {"float parameter": float, "int parameter": int, "Loss": float}
 
-def some_function_to_test(main_value:int,parameters: TestTypeDict):
+def some_function_to_test(main_value:int, parameters: TestTypeDict):
     print(parameters)
     return parameters
 

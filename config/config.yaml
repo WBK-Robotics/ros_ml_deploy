@@ -5,11 +5,12 @@ Inputs:
 Outputs:
   Loss: 
     Name: "Loss"
-    topic: ["loss", "data"] 
-    MessageType: "Float32"
+    topic: "CoolesTopic"
+    field: ["loss", "loss"]
+    MessageType: "Sensordata"
 Extras:
   Imports:
-    Float32:
-      Package: "std_msgs.msg"
-      Module: "Float32"
+    Sensordata:
+      Package: "custom_messages.msg"
+      Module: "Sensordata"
       
