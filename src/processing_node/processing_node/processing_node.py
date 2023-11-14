@@ -22,23 +22,31 @@ class ProcessingNode(Node):
         super().__init__('processing_node')
 
         try:
+            # Config path is expected to be given as an argument when starting the node
             config_path = sys.argv[1]
-
             config = self.loadConfig(config_path)
         except:
             self.get_logger().error("Please specify valid config path")
             rclpy.shutdown()
             return
         
+        # Dict that contains all supported message types and the necessary interface to construct an instance of them
         self.supported_message_types_to_publish = {}
 
         # Create data dict which carries the input data
         self.data_dict = dict.fromkeys(config['Inputs'].keys(), [])
-
+        
         self.importNeededModules(config)
 
         self.get_logger().info("Setting up subscriptions")
 
+        # Translate the information from the config into an input and output dict
+        # they look like
+        #
+        # input_topic_dict = {"Input_Topic_1": {"Input_1": ["Field_1", "Input_1"], "Input_2": ["Field_1", "Input_2"]}}
+        #
+        # output_topic_dict = {"Output_Topic_1": {"Output_1": ["Field_1", "Output_1"], "Output_2": ["Field_1", "Output_2"], "MessageType": "GenericMessageType"}}
+        #
         input_topic_dict, output_topic_dict = self.mapInputAndOutputNamesToTopics(config)
 
         self.setUpSubscriptions(input_topic_dict, config)
@@ -50,7 +58,7 @@ class ProcessingNode(Node):
         self.function_to_execute = func
         self._declare_parameters_for_function(func)
 
-        # Get model inference timer period from config
+        # Set model timer period 
         timer_period = 1.0 / frequency
 
         # Create timer that calls the processing function based on a timer period specified in the config
@@ -168,7 +176,7 @@ class ProcessingNode(Node):
     
     def importNeededModules(self, config):
         """
-        Imports Modules specified in config dict, possibly needed for output message types
+        Imports Modules specified in config dict (needed for output message types)
         Also adds the imported modules to the supported messsage types for output dict
 
         Args:
@@ -239,7 +247,8 @@ class ProcessingNode(Node):
         
         return topics_to_publish_dict
     
-    def setNestedAttribute(self, object, part_list, new_value):
+    @staticmethod
+    def setNestedAttribute(object, part_list, new_value):
         final_attribute_index = len(part_list)-1
         current_attribute = object
         i = 0
@@ -292,20 +301,20 @@ class ProcessingNode(Node):
                     try:
                         data = processed_data[output]
                         output_msg = self.setNestedAttribute(output_msg, field, data)
+                        self.publisher_dict[topic]['Publisher'].publish(output_msg)
                     except:
                         self.get_logger().warn(f'Output {output} not found in model output or wrong data type')
-                self.publisher_dict[topic]['Publisher'].publish(output_msg)
+                
 
 TestTypeDict = {"float parameter": float, "int parameter": int}
 
 def some_function_to_test(main_value:int, parameters: TestTypeDict):
-    print(parameters)
     return parameters
 
 
 def main(args=None):
     rclpy.init()
-    node = ProcessingNode(some_function_to_test)
+    node = ProcessingNode(some_function_to_test, 2)
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()

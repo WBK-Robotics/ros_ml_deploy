@@ -6,12 +6,20 @@ Inputs:
 Outputs:
   float parameter: 
     Description: "Parameter that controls absolutely nothing"
-    Topic: "CoolesTopic"
+    Topic: "CoolTopic"
     Field: ["data"]
     MessageType: "Float32"
+  int parameter:
+    Description: "Another parameter that controls absolutely nothing"
+    Topic: "EvenCoolerTopic"
+    Field: ["data"]
+    MessageType: "Int16"
 Extras:
   Imports:
     Float32:
       Package: "std_msgs.msg"
       Module: "Float32"
+    Int16:
+      Package: "std_msgs.msg"
+      Module: "Int16"
       
