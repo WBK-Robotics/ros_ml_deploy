@@ -7,7 +7,7 @@ import yaml
 import importlib
 
 class ProcessingNode(Node):
-
+#TODO: Clean up code
     def __init__(self, func,frequency=30):
         """
         Initializes the ProcessingNode with a given function.
@@ -42,7 +42,7 @@ class ProcessingNode(Node):
         input_topic_dict, output_topic_dict = self.mapInputAndOutputNamesToTopics(config)
 
         self.setUpSubscriptions(input_topic_dict, config)
-        # TODO: Refer with Jan about whether or not to use the "name" field in the config for information carrying (i.e. as a key in the dicts) or for user feedback only
+
         self.publisher_dict = self.setUpPublishers(output_topic_dict)
 
         self.get_logger().info("Starting the main processing loop")
