@@ -1,14 +1,21 @@
+import sys
+import importlib
+
 import rclpy
+import yaml
 from rclpy.node import Node
 from ros2topic.api import get_msg_class
 
-import sys
-import yaml
-import importlib
+
+
 
 class ProcessingNode(Node):
-#TODO: Clean up code
-    def __init__(self, func,frequency=30):
+    """
+    Ros2 node that sets up input subscribers and output publishers according
+    to a config and handles the data transfer to a processing function
+    """
+
+    def __init__(self, func, frequency=30):
         """
         Initializes the ProcessingNode with a given function.
 
@@ -24,46 +31,54 @@ class ProcessingNode(Node):
         try:
             # Config path is expected to be given as an argument when starting the node
             config_path = sys.argv[1]
-            config = self.loadConfig(config_path)
+            config = self.load_config(config_path)
         except:
             self.get_logger().error("Please specify valid config path")
             rclpy.shutdown()
             return
-        
-        # Dict that contains all supported message types and the necessary interface to construct an instance of them
+
+        # Dict that contains all supported message types and the necessary interface
+        # to construct an instance of them
         self.supported_message_types_to_publish = {}
 
         # Create data dict which carries the input data
         self.data_dict = dict.fromkeys(config['Inputs'].keys(), [])
-        
-        self.importNeededModules(config)
+
+        self.import_needed_modules(config)
 
         self.get_logger().info("Setting up subscriptions")
 
         # Translate the information from the config into an input and output dict
         # they look like
         #
-        # input_topic_dict = {"Input_Topic_1": {"Input_1": ["Field_1", "Input_1"], "Input_2": ["Field_1", "Input_2"]}}
+        # input_topic_dict = {"Input_Topic_1":
+        #                       {"Input_1": ["Field_1", "Input_1"],
+        #                        "Input_2": ["Field_1", "Input_2"]}
+        #                    }
         #
-        # output_topic_dict = {"Output_Topic_1": {"Output_1": ["Field_1", "Output_1"], "Output_2": ["Field_1", "Output_2"], "MessageType": "GenericMessageType"}}
+        # output_topic_dict = {"Output_Topic_1":
+        #                       {"Output_1": ["Field_1", "Output_1"],
+        #                       "Output_2": ["Field_1", "Output_2"],
+        #                       "MessageType": "GenericMessageType"}
+        #                      }
         #
-        input_topic_dict, output_topic_dict = self.mapInputAndOutputNamesToTopics(config)
+        input_topic_dict, output_topic_dict = self.map_input_and_output_names_to_topics(config)
 
-        self.setUpSubscriptions(input_topic_dict, config)
+        self.set_up_subscriptions(input_topic_dict)
 
-        self.publisher_dict = self.setUpPublishers(output_topic_dict)
+        self.publisher_dict = self.set_up_publishers(output_topic_dict)
 
         self.get_logger().info("Starting the main processing loop")
 
         self.function_to_execute = func
         self._declare_parameters_for_function(func)
 
-        # Set model timer period 
+        # Set model timer period
         timer_period = 1.0 / frequency
 
-        # Create timer that calls the processing function based on a timer period specified in the config
+        # Create timer that calls the processing function
         self.timer = self.create_timer(timer_period, self.execute_function)
-    
+
     def _declare_parameters_for_function(self, func):
         """
         Declares ROS2 parameters for this node based on a given function's type annotations.
@@ -86,12 +101,12 @@ class ProcessingNode(Node):
                               str: "",
                               bool: False}
 
-            if param_type not in default_values.keys():
+            if param_type not in default_values:
                 self.get_logger().error(f"Parameter type {param_type} is not supported.")
                 continue
 
             self.declare_parameter(param_name, default_values[param_type])
-    
+
     def call_function_with_current_parameters(self,func_input):
         """
         Calls the internally stored function using the currently set parameters.
@@ -123,8 +138,8 @@ class ProcessingNode(Node):
 
         return self.function_to_execute(func_input,parameters=params)
 
-    
-    def loadConfig(self, config_path):
+
+    def load_config(self, config_path):
         """
         Loads config from path and returns it as a dict
 
@@ -139,17 +154,21 @@ class ProcessingNode(Node):
         with open(config_path, 'r') as file:
             config = yaml.safe_load(file)
         return config
-        
-    def mapInputAndOutputNamesToTopics(self, config):
+
+    def map_input_and_output_names_to_topics(self, config):
         """
         Load the actual mappings of input and output names
 
         Args:
-            config (dict): Config dict that specifies requested inputs and outputs and relevant information about those inputs and outputs
+            config (dict): Config dict that specifies requested inputs and outputs and relevant 
+            information about those inputs and outputs
         
         Returns:
-            input topic dict specifying which topics to subscribe to and what fields of those topics are carrying which input information
-            output topic dict specifying which topics to publish and what fields of those topics carry what information
+            input topic (dict): Dict specifying which topics to subscribe to and what fields of 
+            those topics are carrying which input information
+
+            output topic (dict): Dict specifying which topics to publish and what fields of those 
+            topics carry what information
         """
 
         input_topic_dict = {}
@@ -162,7 +181,7 @@ class ProcessingNode(Node):
                 input_topic_dict[topic] = {key: field}
             else:
                 input_topic_dict[topic][key] = field
-        
+
         for key in config['Outputs']:
             topic = config['Outputs'][key]['Topic']
             field = config['Outputs'][key]['Field']
@@ -171,10 +190,10 @@ class ProcessingNode(Node):
                 output_topic_dict[topic]['MessageType'] = config['Outputs'][key]['MessageType']
             else:
                 output_topic_dict[topic][key] = field
-        
+
         return input_topic_dict, output_topic_dict
-    
-    def importNeededModules(self, config):
+
+    def import_needed_modules(self, config):
         """
         Imports Modules specified in config dict (needed for output message types)
         Also adds the imported modules to the supported messsage types for output dict
@@ -187,18 +206,20 @@ class ProcessingNode(Node):
             for to_import in import_dict.keys():
                 package = import_dict[to_import]["Package"]
                 module = import_dict[to_import]["Module"]
-                messageTypeClass = getattr(importlib.import_module(package), module)
-                self.supported_message_types_to_publish[to_import] = messageTypeClass
+                message_type_class = getattr(importlib.import_module(package), module)
+                self.supported_message_types_to_publish[to_import] = message_type_class
         except:
             self.get_logger().warn("Import failed!")
-            pass
-    
-    def setUpSubscriptions(self, topic_dict, config):
+
+    def set_up_subscriptions(self, topic_dict):
         """
-        Sets up Subscriptions to topics that are mentioned in topic_dict, also sets up listener_callback with correct input-message field mapping
+        Sets up Subscriptions to topics that are mentioned in topic_dict, 
+        also sets up listener_callback with correct input-message field mapping
 
         Args:
-            topic_dict (dict): dict that contains the topics to be subscribed to, the inputs they carry and in which field these inputs are
+            topic_dict (dict): dict that contains the topics to be subscribed to,
+            the inputs they carry and in which field these inputs are
+
             config (dict): dict that contains more information about the inputs
         """
 
@@ -210,47 +231,67 @@ class ProcessingNode(Node):
                 # Check if topic we want is in currently publishing topics
                 for topic_tuple in topic_list:
                     if topic_name in topic_tuple[0]:
-                        # Get msg type 
+                        # Get msg type
                         msg_type = get_msg_class(self, topic_tuple[0], include_hidden_topics=True)
                         # Set up subscription
-                        self.create_subscription(msg_type, topic_tuple[0], lambda msg, field_names=topic_dict[topic_name] : self.listener_callback(msg, field_names), 10)
+                        self.create_subscription(msg_type,
+                                                topic_tuple[0],
+                                                lambda msg, field_names=topic_dict[topic_name] : self.listener_callback(msg, field_names),
+                                                10)
                         # Toggle bool
                         subscribed = True
-                        self.get_logger().info(f"Subscribed to topic {topic_name} which publishes {[i for i in topic_dict[topic_name]]}")
-    
-    def setUpPublishers(self, topic_dict):
+                        self.get_logger().info(f"Subscribed to topic {topic_name} which publishes {list(topic_dict[topic_name])}")
+
+    def set_up_publishers(self, topic_dict):
         """
         Sets up publishers according to the outputs specified in the config
 
         Args:
-            topic_dict(dict): dict that contains information about the topics to be published
+            topic_dict (dict): dict that contains information about the topics to be published
         
         Returns:
-            output dict specifying the publisher for each publishable output and in what field of the message to publish which output
+            output_dict (dict): dict specifying the publisher for each publishable output and
+            in what field of the message to publish which output
         """
 
         topics_to_publish_dict = {}
 
         for topic_name in topic_dict.keys():
-            messageTypeString = topic_dict[topic_name]['MessageType']
-            if messageTypeString not in self.supported_message_types_to_publish:
+            message_type_string = topic_dict[topic_name]['MessageType']
+            if message_type_string not in self.supported_message_types_to_publish:
                 self.get_logger().warn(f'Topic name {topic_name} cannot be published, Message Type is unknown')
             else:
-                topics_to_publish_dict[topic_name] = {'Publisher': self.create_publisher(self.supported_message_types_to_publish[messageTypeString], topic_name, 10)}
-            
-                topics_to_publish_dict[topic_name]['MessageType'] = messageTypeString
+                topics_to_publish_dict[topic_name] = {'Publisher': self.create_publisher(self.supported_message_types_to_publish[message_type_string],
+                                                                                        topic_name,
+                                                                                        10)}
+
+                topics_to_publish_dict[topic_name]['MessageType'] = message_type_string
                 topics_to_publish_dict[topic_name]['Fields'] = {}
-                
+
                 for key in topic_dict[topic_name]:
                     if key != 'MessageType':
                         topics_to_publish_dict[topic_name]['Fields'][key] = topic_dict[topic_name][key]
-        
+
         return topics_to_publish_dict
-    
+
     @staticmethod
-    def setNestedAttribute(object, part_list, new_value):
+    def set_nested_attribute(parent, part_list, new_value):
+        """
+        Helper function that sets an attribute within a nested object structure
+
+        Args:
+            parent (object): object for which an attribute is to be set
+            
+            part_list (list): path to the requested attribute in the form of ["nested_1", 
+            "nested_2", "attribute"] without restrictions on length
+
+            new_value (Attribute data type): the value the attribute is to be set to
+        
+        Returns:
+            parent (object): object with the now set attribute
+        """
         final_attribute_index = len(part_list)-1
-        current_attribute = object
+        current_attribute = parent
         i = 0
         for part in part_list:
             new_attribute = getattr(current_attribute, part)
@@ -259,11 +300,12 @@ class ProcessingNode(Node):
             current_attribute = new_attribute
             i += 1
 
-        return object
+        return parent
 
     def listener_callback(self, msg, field_names):
         """
-        Function that is called whenever something is published to a subscribed topic and modifies the data dict accordingly
+        Function that is called whenever something is published to a subscribed topic 
+        and modifies the data dict accordingly
 
         Args:
             msg (ROS2 Message): Message that triggered the function call
@@ -271,18 +313,19 @@ class ProcessingNode(Node):
         """
 
         # Read the relevant message field and append it to the relevant list in the data dict
-        for input in field_names.keys():
+        for input_name in field_names.keys():
             # Loop over attributes to reach deeper message levels until the actual data is reached
             base = msg
-            for i in range(len(field_names[input])):
-                attribute = field_names[input][i]
+            for i in range(len(field_names[input_name])):
+                attribute = field_names[input_name][i]
                 base = getattr(base, attribute)
             # Does not work with append for whatever reason
-            self.data_dict[input] = self.data_dict[input] + [base]
-            
+            self.data_dict[input_name] = self.data_dict[input_name] + [base]
+
     def execute_function(self):
         """
-        Function that is called on a timer and sends collected input data to the processing function aswell as publish the resulting output
+        Function that is called on a timer, sends collected input data to the 
+        processing function and publishes the resulting output
         """
 
         #  Call processing function
@@ -294,17 +337,17 @@ class ProcessingNode(Node):
         # Publish output
         if processed_data:
             for topic in self.publisher_dict:
-                message_type = self.supported_message_types_to_publish[self.publisher_dict[topic]['MessageType']]
+                message_type_string = self.publisher_dict[topic]['MessageType']
+                message_type = self.supported_message_types_to_publish[message_type_string]
                 output_msg = message_type()
                 for output in self.publisher_dict[topic]['Fields']:
                     field = self.publisher_dict[topic]['Fields'][output]
                     try:
                         data = processed_data[output]
-                        output_msg = self.setNestedAttribute(output_msg, field, data)
+                        output_msg = self.set_nested_attribute(output_msg, field, data)
                         self.publisher_dict[topic]['Publisher'].publish(output_msg)
                     except:
                         self.get_logger().warn(f'Output {output} not found in model output or wrong data type')
-                
 
 TestTypeDict = {"float parameter": float, "int parameter": int}
 
@@ -312,7 +355,12 @@ def some_function_to_test(main_value:int, parameters: TestTypeDict):
     return parameters
 
 
-def main(args=None):
+def main():
+    """
+    Main function to be used as an entry point. Calls the constructor, starts the processing, and calls
+    the destructor
+    """
+
     rclpy.init()
     node = ProcessingNode(some_function_to_test, 2)
     rclpy.spin(node)
@@ -320,4 +368,4 @@ def main(args=None):
     rclpy.shutdown()
 
 if __name__ == '__main__':
-    main()        
+    main()
