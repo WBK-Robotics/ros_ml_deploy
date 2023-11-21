@@ -1,17 +1,17 @@
 Inputs:
-  Motorstrom 1:
-    Description: "Beispielsweise Strom, der den Greifer versorgt"
+  Motor Current 1:
+    Description: "Example input parameter, for instance emulating a motor current"
     Topic: "sensor_data"
     Field: ["data"]
 Outputs:
   float parameter: 
-    Description: "Parameter that controls absolutely nothing"
-    Topic: "CoolTopic"
+    Description: "Example float parameter"
+    Topic: "ExampleFloat"
     Field: ["data"]
     MessageType: "Float32"
   int parameter:
-    Description: "Another parameter that controls absolutely nothing"
-    Topic: "EvenCoolerTopic"
+    Description: "Example int parameter"
+    Topic: "ExampleInt"
     Field: ["data"]
     MessageType: "Int16"
 Extras:
