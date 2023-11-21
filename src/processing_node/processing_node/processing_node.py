@@ -1,9 +1,9 @@
 import sys
 import importlib
+import time
 
 import rclpy
 import yaml
-import time
 from rclpy.node import Node
 from ros2topic.api import get_msg_class
 
@@ -43,14 +43,15 @@ class ProcessingNode(Node):
 
         super().__init__('processing_node')
 
+        # Config path is expected to be given as an argument when starting the node            
         try:
-            # Config path is expected to be given as an argument when starting the node
             config_path = sys.argv[1]
-            config = self.load_config(config_path)
-        except:
-            self.get_logger().error("Please specify a path to a valid config")
+        except IndexError as e:
+            self.get_logger().error("Missing argument: config path")
             rclpy.shutdown()
-            return
+            sys.exit()
+
+        config = self.load_config(config_path)
 
         # Dict that contains all supported message types and the necessary interface
         # to construct an instance of them
@@ -163,7 +164,16 @@ class ProcessingNode(Node):
 
         # Get dict of inputs from parameters
         with open(config_path, 'r') as file:
-            config = yaml.safe_load(file)
+            try:
+                config = yaml.safe_load(file)
+            except yaml.YAMLError as e:
+                self.get_logger().error("Specified path does not lead to a valid yaml file")
+                if hasattr(e, 'problem_mark'):
+                    if e.context is not None:
+                        self.get_logger().warn(str(e.problem_mark) + '\n' + str(e.problem) + ' ' + str(e.context))
+                rclpy.shutdown()
+                sys.exit()
+
         return config
 
     def map_input_and_output_names_to_topics(self, config: dict) -> tuple[dict, dict]:
@@ -214,13 +224,13 @@ class ProcessingNode(Node):
         """
         try:
             import_dict = config['Extras']['Imports']
-            for to_import in import_dict.keys():
+            for to_import in import_dict:
                 package = import_dict[to_import]["Package"]
                 module = import_dict[to_import]["Module"]
                 message_type_class = getattr(importlib.import_module(package), module)
                 self.supported_message_types_to_publish[to_import] = message_type_class
         except:
-            self.get_logger().warn("Import failed!")
+            self.get_logger().warn("Import of message based modules specified in config failed!")
 
     def set_up_subscriptions(self, topic_dict: dict):
         """
@@ -232,7 +242,7 @@ class ProcessingNode(Node):
             the inputs they carry and in which field these inputs are
         """
 
-        for topic_name in topic_dict.keys():
+        for topic_name in topic_dict:
             subscribed = False
             timeout = time.time() + 60
             while not subscribed:
@@ -254,7 +264,8 @@ class ProcessingNode(Node):
                 if time.time() > timeout:
                     self.get_logger().error(f"Input topic {topic_name} was not found within 60 Seconds, aborting")
                     rclpy.shutdown()
-                    break
+                    sys.exit()
+
                 # Wait half a second
                 time.sleep(0.5)
 
@@ -272,7 +283,7 @@ class ProcessingNode(Node):
 
         topics_to_publish_dict = {}
 
-        for topic_name in topic_dict.keys():
+        for topic_name in topic_dict:
             message_type_string = topic_dict[topic_name]['MessageType']
             if message_type_string not in self.supported_message_types_to_publish:
                 self.get_logger().warn(f'Topic name {topic_name} cannot be published, Message Type is unknown')
@@ -327,7 +338,7 @@ class ProcessingNode(Node):
         """
 
         # Read the relevant message field and append it to the relevant list in the data dict
-        for input_name in field_names.keys():
+        for input_name in field_names:
             # Loop over attributes to reach deeper message levels until the actual data is reached
             base = msg
             for i in range(len(field_names[input_name])):
@@ -349,7 +360,7 @@ class ProcessingNode(Node):
         self.aggregated_input_data = dict.fromkeys(self.aggregated_input_data.keys(), [])
 
         # Publish output
-        if processed_data:
+        if processed_data is not None:
             for topic in self.publisher_dict:
                 message_type_string = self.publisher_dict[topic]['MessageType']
                 message_type = self.supported_message_types_to_publish[message_type_string]
