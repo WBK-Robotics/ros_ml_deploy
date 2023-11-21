@@ -29,7 +29,7 @@ class ProcessingNode(Node):
         in construction   
     """
 
-    def __init__(self, func: function, frequency: float=30.0):
+    def __init__(self, func: callable, frequency: float=30.0):
         """
         Initializes the ProcessingNode with a given function.
 
@@ -89,7 +89,7 @@ class ProcessingNode(Node):
         # Create timer that calls the processing function
         self.timer = self.create_timer(timer_period, self.execute_function)
 
-    def _declare_parameters_for_function(self, func: function):
+    def _declare_parameters_for_function(self, func: callable):
         """
         Declares ROS2 parameters for this node based on a given function's type annotations.
 
