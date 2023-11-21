@@ -13,9 +13,14 @@ class ProcessingNode(Node):
     """
     Ros2 node that sets up input subscribers and output publishers according
     to a config and handles the data transfer to a processing function
+
+    Args:
+        supported_message_types_to_publish (dict): dict that is filled with imported message types
+        
+
     """
 
-    def __init__(self, func, frequency=30):
+    def __init__(self, func: function, frequency: float=30.0):
         """
         Initializes the ProcessingNode with a given function.
 
@@ -147,7 +152,7 @@ class ProcessingNode(Node):
             config_path (String): Absolute path to the config file expected to be .yaml
         
         Returns:
-            config dict
+            config dict (dict): Contents of the config.yaml restructured into a dict
         """
 
         # Get dict of inputs from parameters
