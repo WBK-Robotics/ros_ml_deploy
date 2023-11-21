@@ -300,13 +300,11 @@ class ProcessingNode(Node):
         """
         final_attribute_index = len(part_list)-1
         current_attribute = parent
-        i = 0
-        for part in part_list:
+        for i, part in enumerate(part_list):
             new_attribute = getattr(current_attribute, part)
             if i == final_attribute_index:
                 setattr(current_attribute, part, new_value)
             current_attribute = new_attribute
-            i += 1
 
         return parent
 
