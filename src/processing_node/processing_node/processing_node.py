@@ -47,7 +47,7 @@ class ProcessingNode(Node):
             config_path = sys.argv[1]
             config = self.load_config(config_path)
         except:
-            self.get_logger().error("Please specify valid config path")
+            self.get_logger().error("Please specify a path to a valid config")
             rclpy.shutdown()
             return
 
@@ -59,8 +59,6 @@ class ProcessingNode(Node):
         self.aggregated_input_data = dict.fromkeys(config['Inputs'].keys(), [])
 
         self.import_needed_modules(config)
-
-        self.get_logger().info("Setting up subscriptions")
 
         # Translate the information from the config into an input and output dict
         # they look like
@@ -82,8 +80,6 @@ class ProcessingNode(Node):
 
         self.publisher_dict = self.set_up_publishers(output_topic_dict)
 
-        self.get_logger().info("Starting the main processing loop")
-
         self.function_to_execute = func
         self._declare_parameters_for_function(func)
 
@@ -93,7 +89,7 @@ class ProcessingNode(Node):
         # Create timer that calls the processing function
         self.timer = self.create_timer(timer_period, self.execute_function)
 
-    def _declare_parameters_for_function(self, func):
+    def _declare_parameters_for_function(self, func: function):
         """
         Declares ROS2 parameters for this node based on a given function's type annotations.
 
@@ -153,7 +149,7 @@ class ProcessingNode(Node):
         return self.function_to_execute(func_input,parameters=params)
 
 
-    def load_config(self, config_path):
+    def load_config(self, config_path: str) -> dict:
         """
         Loads config from path and returns it as a dict
 
@@ -169,7 +165,7 @@ class ProcessingNode(Node):
             config = yaml.safe_load(file)
         return config
 
-    def map_input_and_output_names_to_topics(self, config):
+    def map_input_and_output_names_to_topics(self, config: dict) -> tuple[dict, dict]:
         """
         Load the actual mappings of input and output names
 
@@ -207,7 +203,7 @@ class ProcessingNode(Node):
 
         return input_topic_dict, output_topic_dict
 
-    def import_needed_modules(self, config):
+    def import_needed_modules(self, config: dict):
         """
         Imports Modules specified in config dict (needed for output message types)
         Also adds the imported modules to the supported messsage types for output dict
@@ -225,7 +221,7 @@ class ProcessingNode(Node):
         except:
             self.get_logger().warn("Import failed!")
 
-    def set_up_subscriptions(self, topic_dict):
+    def set_up_subscriptions(self, topic_dict: dict):
         """
         Sets up Subscriptions to topics that are mentioned in topic_dict, 
         also sets up listener_callback with correct input-message field mapping
@@ -233,8 +229,6 @@ class ProcessingNode(Node):
         Args:
             topic_dict (dict): dict that contains the topics to be subscribed to,
             the inputs they carry and in which field these inputs are
-
-            config (dict): dict that contains more information about the inputs
         """
 
         for topic_name in topic_dict.keys():
@@ -256,7 +250,7 @@ class ProcessingNode(Node):
                         subscribed = True
                         self.get_logger().info(f"Subscribed to topic {topic_name} which publishes {list(topic_dict[topic_name])}")
 
-    def set_up_publishers(self, topic_dict):
+    def set_up_publishers(self, topic_dict: dict) -> dict:
         """
         Sets up publishers according to the outputs specified in the config
 
