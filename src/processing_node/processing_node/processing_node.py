@@ -3,6 +3,7 @@ import importlib
 
 import rclpy
 import yaml
+import time
 from rclpy.node import Node
 from ros2topic.api import get_msg_class
 
@@ -233,6 +234,7 @@ class ProcessingNode(Node):
 
         for topic_name in topic_dict.keys():
             subscribed = False
+            timeout = time.time() + 60
             while not subscribed:
                 # Get all currently publishing topics
                 topic_list = self.get_topic_names_and_types()
@@ -249,6 +251,12 @@ class ProcessingNode(Node):
                         # Toggle bool
                         subscribed = True
                         self.get_logger().info(f"Subscribed to topic {topic_name} which publishes {list(topic_dict[topic_name])}")
+                if time.time() > timeout:
+                    self.get_logger().error(f"Input topic {topic_name} was not found within 60 Seconds, aborting")
+                    rclpy.shutdown()
+                    break
+                # Wait half a second
+                time.sleep(0.5)
 
     def set_up_publishers(self, topic_dict: dict) -> dict:
         """
