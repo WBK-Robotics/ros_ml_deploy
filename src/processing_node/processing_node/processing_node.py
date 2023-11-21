@@ -14,10 +14,19 @@ class ProcessingNode(Node):
     Ros2 node that sets up input subscribers and output publishers according
     to a config and handles the data transfer to a processing function
 
-    Args:
+    Attributes:
         supported_message_types_to_publish (dict): dict that is filled with imported message types
         
+        aggregated_input_data (dict): dict that is filled with data gathered from
+        the set up subscribers to be used as input data for the processing model
 
+        publisher_dict (dict): dict containing the mapping information of output data to 
+        respective output publisher
+
+        function_to_execute (function): the processing function to be executed 
+
+        timer (Timer): Timer that calls function_to_execute with a frequency specified
+        in construction   
     """
 
     def __init__(self, func: function, frequency: float=30.0):
@@ -47,7 +56,7 @@ class ProcessingNode(Node):
         self.supported_message_types_to_publish = {}
 
         # Create data dict which carries the input data
-        self.data_dict = dict.fromkeys(config['Inputs'].keys(), [])
+        self.aggregated_input_data = dict.fromkeys(config['Inputs'].keys(), [])
 
         self.import_needed_modules(config)
 
@@ -325,7 +334,7 @@ class ProcessingNode(Node):
                 attribute = field_names[input_name][i]
                 base = getattr(base, attribute)
             # Does not work with append for whatever reason
-            self.data_dict[input_name] = self.data_dict[input_name] + [base]
+            self.aggregated_input_data[input_name] = self.aggregated_input_data[input_name] + [base]
 
     def execute_function(self):
         """
@@ -334,10 +343,10 @@ class ProcessingNode(Node):
         """
 
         #  Call processing function
-        processed_data = self.call_function_with_current_parameters(self.data_dict)
+        processed_data = self.call_function_with_current_parameters(self.aggregated_input_data)
 
         # Reset data dict
-        self.data_dict = dict.fromkeys(self.data_dict.keys(), [])
+        self.aggregated_input_data = dict.fromkeys(self.aggregated_input_data.keys(), [])
 
         # Publish output
         if processed_data:
