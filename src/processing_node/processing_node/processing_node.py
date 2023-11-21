@@ -302,7 +302,7 @@ class ProcessingNode(Node):
         return topics_to_publish_dict
 
     @staticmethod
-    def set_nested_attribute(parent, part_list, new_value):
+    def set_nested_attribute(parent: object, part_list: list, new_value:object):
         """
         Helper function that sets an attribute within a nested object structure
 
