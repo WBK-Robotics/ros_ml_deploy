@@ -1,0 +1,24 @@
+Inputs:
+  Motor Current 1:
+    Description: "Example input parameter, for instance emulating a motor current"
+    Topic: "sensor_data"
+    Field: ["data"]
+Outputs:
+  float parameter: 
+    Description: "Example float parameter"
+    Topic: "ExampleFloat"
+    Field: ["data"]
+    MessageType: "Float32"
+  int parameter:
+    Description: "Example int parameter"
+    Topic: "ExampleInt"
+    Field: ["data"]
+    MessageType: "Int16"
+Imports:
+  Float32:
+    Package: "std_msgs.msg"
+    Module: "Float32"
+  Int16:
+    Package: "std_msgs.msg"
+    Module: "Int16"
+      

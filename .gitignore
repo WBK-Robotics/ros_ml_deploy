@@ -52,3 +52,9 @@ qtcreator-*
 
 # Catkin custom files
 CATKIN_IGNORE
+
+# Build files
+build/
+install/
+log/
+src/processing_node/processing_node/autoencoder.onnx
