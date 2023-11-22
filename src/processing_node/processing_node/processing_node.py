@@ -43,15 +43,17 @@ class ProcessingNode(Node):
 
         super().__init__('processing_node')
 
-        # Config path is expected to be given as an argument when starting the node            
+        # Config path is expected to be given as an argument when starting the node
         try:
             config_path = sys.argv[1]
-        except IndexError as e:
+        except IndexError:
             self.get_logger().error("Missing argument: config path")
             rclpy.shutdown()
             sys.exit()
 
         config = self.load_config(config_path)
+
+        self.check_if_config_is_valid(config)
 
         # Dict that contains all supported message types and the necessary interface
         # to construct an instance of them
@@ -176,6 +178,59 @@ class ProcessingNode(Node):
 
         return config
 
+    @staticmethod
+    def check_if_config_is_valid(config: dict):
+        """
+        Method that checks if the given config has:
+        - Inputs without a 'Topic' or 'Field'
+        - Outputs without a 'Topic' or 'Field' or 'MessageType'
+        - 'MessageType' in 'Outputs' that are not featured in 'Imports'
+        - 'Imports' without a 'Package' or 'Module'
+
+        Args:
+            config (dict): The config dict to be checked
+        """
+        config_is_valid = True
+
+        error_message = ""
+
+        if "Inputs" not in config:
+            config["Inputs"] = []
+
+        for input_name in config["Inputs"]:
+            for necessary_part in ["Topic", "Field"]:
+                if necessary_part not in config["Inputs"][input_name]:
+                    error_message += f"Config Format Error: Input {input_name} has no '{necessary_part}' \n"
+                    config_is_valid = False
+
+        if "Imports" not in config:
+            config["Imports"] = []
+
+        for import_name in config["Imports"]:
+            for necessary_part in ["Package", "Module"]:
+                if necessary_part not in config["Imports"][import_name]:
+                    error_message += f"Config Format Error: Import {import_name} has no '{necessary_part}' \n"
+                    config_is_valid = False
+
+        if "Outputs" not in config:
+            config["Outputs"] = []
+
+        for output_name in config["Outputs"]:
+            for necessary_part in ["Topic", "Field"]:
+                if necessary_part not in config["Outputs"][output_name]:
+                    error_message += f"Config Format Error: Output {output_name} has no '{necessary_part}' \n"
+                    config_is_valid = False
+            if "MessageType" not in config["Outputs"][output_name]:
+                error_message += f"Config Format Error: Output {output_name} has no 'MessageType' \n"
+                config_is_valid = False
+            elif config["Outputs"][output_name]["MessageType"] not in config["Imports"]:
+                error_message += f"Config Format Error: Message Type {config['Outputs'][output_name]['MessageType']} requested by Output '{output_name}' not in 'Imports' \n"
+                config_is_valid = False
+        if not config_is_valid:
+            rclpy.logging.get_logger("processing_node").error(error_message)
+            rclpy.shutdown()
+            sys.exit()
+
     def map_input_and_output_names_to_topics(self, config: dict) -> tuple[dict, dict]:
         """
         Load the actual mappings of input and output names
@@ -223,7 +278,7 @@ class ProcessingNode(Node):
             config (dict): Config dict that specifies which modules to import from where
         """
         try:
-            import_dict = config['Extras']['Imports']
+            import_dict = config['Imports']
             for to_import in import_dict:
                 package = import_dict[to_import]["Package"]
                 module = import_dict[to_import]["Module"]
@@ -327,7 +382,7 @@ class ProcessingNode(Node):
 
         return parent
 
-    def listener_callback(self, msg, field_names):
+    def listener_callback(self, msg, field_names: dict):
         """
         Function that is called whenever something is published to a subscribed topic 
         and modifies the data dict accordingly
@@ -341,9 +396,13 @@ class ProcessingNode(Node):
         for input_name in field_names:
             # Loop over attributes to reach deeper message levels until the actual data is reached
             base = msg
-            for i in range(len(field_names[input_name])):
-                attribute = field_names[input_name][i]
-                base = getattr(base, attribute)
+            # Check if field name is a string and the message therefore only 1 level deep
+            if isinstance(field_names[input_name], str):
+                base = getattr(base, field_names[input_name])
+            else:
+                for i in range(len(field_names[input_name])):
+                    attribute = field_names[input_name][i]
+                    base = getattr(base, attribute)
             # Does not work with append for whatever reason
             self.aggregated_input_data[input_name] = self.aggregated_input_data[input_name] + [base]
 
@@ -367,6 +426,9 @@ class ProcessingNode(Node):
                 output_msg = message_type()
                 for output in self.publisher_dict[topic]['Fields']:
                     field = self.publisher_dict[topic]['Fields'][output]
+                    # Check if field is only a string and the message therefore only 1 level deep
+                    if isinstance(field, str):
+                        field = [field]
                     try:
                         data = processed_data[output]
                         output_msg = self.set_nested_attribute(output_msg, field, data)
