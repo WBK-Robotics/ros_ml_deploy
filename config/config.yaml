@@ -14,12 +14,11 @@ Outputs:
     Topic: "ExampleInt"
     Field: ["data"]
     MessageType: "Int16"
-Extras:
-  Imports:
-    Float32:
-      Package: "std_msgs.msg"
-      Module: "Float32"
-    Int16:
-      Package: "std_msgs.msg"
-      Module: "Int16"
+Imports:
+  Float32:
+    Package: "std_msgs.msg"
+    Module: "Float32"
+  Int16:
+    Package: "std_msgs.msg"
+    Module: "Int16"
       
