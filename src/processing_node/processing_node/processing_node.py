@@ -17,17 +17,17 @@ class ProcessingNode(Node):
 
     Attributes:
         supported_message_types_to_publish (dict): dict that is filled with imported message types
-        
+
         aggregated_input_data (dict): dict that is filled with data gathered from
         the set up subscribers to be used as input data for the processing model
 
-        publisher_dict (dict): dict containing the mapping information of output data to 
+        publisher_dict (dict): dict containing the mapping information of output data to
         respective output publisher
 
-        function_to_execute (function): the processing function to be executed 
+        function_to_execute (function): the processing function to be executed
 
         timer (Timer): Timer that calls function_to_execute with a frequency specified
-        in construction   
+        in construction
     """
 
     def __init__(self, func: callable, frequency: float=30.0):
@@ -159,7 +159,7 @@ class ProcessingNode(Node):
 
         Args:
             config_path (String): Absolute path to the config file expected to be .yaml
-        
+
         Returns:
             config dict (dict): Contents of the config.yaml restructured into a dict
         """
@@ -236,14 +236,14 @@ class ProcessingNode(Node):
         Load the actual mappings of input and output names
 
         Args:
-            config (dict): Config dict that specifies requested inputs and outputs and relevant 
+            config (dict): Config dict that specifies requested inputs and outputs and relevant
             information about those inputs and outputs
-        
+
         Returns:
-            input topic (dict): Dict specifying which topics to subscribe to and what fields of 
+            input topic (dict): Dict specifying which topics to subscribe to and what fields of
             those topics are carrying which input information
 
-            output topic (dict): Dict specifying which topics to publish and what fields of those 
+            output topic (dict): Dict specifying which topics to publish and what fields of those
             topics carry what information
         """
 
@@ -289,7 +289,7 @@ class ProcessingNode(Node):
 
     def set_up_subscriptions(self, topic_dict: dict):
         """
-        Sets up Subscriptions to topics that are mentioned in topic_dict, 
+        Sets up Subscriptions to topics that are mentioned in topic_dict,
         also sets up listener_callback with correct input-message field mapping
 
         Args:
@@ -330,7 +330,7 @@ class ProcessingNode(Node):
 
         Args:
             topic_dict (dict): dict that contains information about the topics to be published
-        
+
         Returns:
             output_dict (dict): dict specifying the publisher for each publishable output and
             in what field of the message to publish which output
@@ -363,12 +363,12 @@ class ProcessingNode(Node):
 
         Args:
             parent (object): object for which an attribute is to be set
-            
-            part_list (list): path to the requested attribute in the form of ["nested_1", 
+
+            part_list (list): path to the requested attribute in the form of ["nested_1",
             "nested_2", "attribute"] without restrictions on length
 
             new_value (Attribute data type): the value the attribute is to be set to
-        
+
         Returns:
             parent (object): object with the now set attribute
         """
@@ -384,7 +384,7 @@ class ProcessingNode(Node):
 
     def listener_callback(self, msg, field_names: dict):
         """
-        Function that is called whenever something is published to a subscribed topic 
+        Function that is called whenever something is published to a subscribed topic
         and modifies the data dict accordingly
 
         Args:
@@ -408,7 +408,7 @@ class ProcessingNode(Node):
 
     def execute_function(self):
         """
-        Function that is called on a timer, sends collected input data to the 
+        Function that is called on a timer, sends collected input data to the
         processing function and publishes the resulting output
         """
 
