@@ -1,7 +1,7 @@
 import pytest
 import yaml
 from processing_node.processing_node import ProcessingNode
-
+import rclpy
 import os
 import ament_index_python.packages
 
@@ -11,12 +11,13 @@ def get_config_file_path(filename):
     package_directory = ament_index_python.packages.get_package_share_directory('processing_node')
 
     # Construct the full path to the configuration file
-    config_file_path = os.path.join(package_directory, 'config', filename)
+    config_file_path = os.path.join(package_directory, 'test','test_config', filename)
 
     return config_file_path
 
 
 def test_valid_configuration_file():
+    rclpy.init()
     config_path = get_config_file_path("config.yaml")
     # Arrange
     config_dict = {
@@ -57,7 +58,7 @@ def test_valid_configuration_file():
         yaml.dump(config_dict, file)
     
     # Act
-    node = ProcessingNode(lambda x: x)  # Dummy function
+    node = ProcessingNode(lambda x: x,config_path=config_path)  # Dummy function
     loaded_config = node.load_config(str(config_path))
     
     # Assert
