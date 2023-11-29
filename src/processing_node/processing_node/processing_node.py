@@ -30,7 +30,7 @@ class ProcessingNode(Node):
         in construction   
     """
 
-    def __init__(self, func: callable, config:str=None, frequency: float=30.0):
+    def __init__(self, func: callable, config_path:str=None, frequency: float=30.0):
         """
         Initializes the ProcessingNode with a given function.
 
@@ -44,7 +44,7 @@ class ProcessingNode(Node):
         super().__init__('processing_node')
 
         # Config path is expected to be given as an argument when starting the node
-        if config is None:
+        if config_path is None:
             try:
                 config_path = sys.argv[1]
             except IndexError:
@@ -52,18 +52,18 @@ class ProcessingNode(Node):
                 rclpy.shutdown()
                 sys.exit()
 
-        config = self.load_config(config_path)
+        config_path = self.load_config(config_path)
 
-        self.check_if_config_is_valid(config)
+        self.check_if_config_is_valid(config_path)
 
         # Dict that contains all supported message types and the necessary interface
         # to construct an instance of them
         self.supported_message_types_to_publish = {}
 
         # Create data dict which carries the input data
-        self.aggregated_input_data = dict.fromkeys(config['Inputs'].keys(), [])
+        self.aggregated_input_data = dict.fromkeys(config_path['Inputs'].keys(), [])
 
-        self.import_needed_modules(config)
+        self.import_needed_modules(config_path)
 
         # Translate the information from the config into an input and output dict
         # they look like
@@ -79,7 +79,7 @@ class ProcessingNode(Node):
         #                       "MessageType": "GenericMessageType"}
         #                      }
         #
-        input_topic_dict, output_topic_dict = self.map_input_and_output_names_to_topics(config)
+        input_topic_dict, output_topic_dict = self.map_input_and_output_names_to_topics(config_path)
 
         self.set_up_subscriptions(input_topic_dict)
 
@@ -300,7 +300,7 @@ class ProcessingNode(Node):
 
         for topic_name in topic_dict:
             subscribed = False
-            timeout = time.time() + 60
+            timeout = time.time() + 4
             while not subscribed:
                 # Get all currently publishing topics
                 topic_list = self.get_topic_names_and_types()
@@ -318,9 +318,8 @@ class ProcessingNode(Node):
                         subscribed = True
                         self.get_logger().info(f"Subscribed to topic {topic_name} which publishes {list(topic_dict[topic_name])}")
                 if time.time() > timeout:
-                    self.get_logger().error(f"Input topic {topic_name} was not found within 60 Seconds, aborting")
-                    rclpy.shutdown()
-                    sys.exit()
+                    self.get_logger().warning(f"Input topic {topic_name} was not found within 60 Seconds, no subscription was set up")
+                    break
 
                 # Wait half a second
                 time.sleep(0.5)
