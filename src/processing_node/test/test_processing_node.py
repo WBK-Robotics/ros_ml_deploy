@@ -103,15 +103,15 @@ def test_call_function_with_current_parameters():
     TestTypeDict = {"float parameter": float, "int parameter": int}
     
     def some_function_to_test(main_value:int, parameters: TestTypeDict):
-        return parameters
+        return main_value, parameters
     rclpy.init()
     node = ProcessingNode(some_function_to_test,config_path=config_path)
     node.get_parameter = MagicMock(side_effect=lambda param: MagicMock(value=param))
-    test_input = {"main_value": 42}  # Example input
+    test_input = 42 # Example input
 
     result = node.call_function_with_current_parameters(test_input)
 
-    expected = {"float parameter": "float parameter", "int parameter": "int parameter"}
+    expected = 42, {"float parameter": "float parameter", "int parameter": "int parameter"}
     assert result == expected
     rclpy.shutdown()
 
