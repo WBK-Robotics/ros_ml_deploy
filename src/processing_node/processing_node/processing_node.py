@@ -61,6 +61,46 @@ def check_if_config_is_valid(config: dict):
         
 
 
+def map_input_and_output_names_to_topics(config: dict) -> tuple[dict, dict]:
+        """
+        Load the actual mappings of input and output names
+
+        Args:
+            config (dict): Config dict that specifies requested inputs and outputs and relevant 
+            information about those inputs and outputs
+        
+        Returns:
+            input topic (dict): Dict specifying which topics to subscribe to and what fields of 
+            those topics are carrying which input information
+
+            output topic (dict): Dict specifying which topics to publish and what fields of those 
+            topics carry what information
+        """
+
+        input_topic_dict = {}
+        output_topic_dict = {}
+
+        for key in config['Inputs']:
+            topic = config['Inputs'][key]['Topic']
+            field = config['Inputs'][key]['Field']
+            if topic not in input_topic_dict:
+                input_topic_dict[topic] = {key: field}
+            else:
+                input_topic_dict[topic][key] = field
+
+        for key in config['Outputs']:
+            topic = config['Outputs'][key]['Topic']
+            field = config['Outputs'][key]['Field']
+            if topic not in output_topic_dict:
+                output_topic_dict[topic] = {key: field}
+                output_topic_dict[topic]['MessageType'] = config['Outputs'][key]['MessageType']
+            else:
+                output_topic_dict[topic][key] = field
+
+        return input_topic_dict, output_topic_dict
+
+
+
 
 class ProcessingNode(Node):
     """
@@ -135,7 +175,7 @@ class ProcessingNode(Node):
         #                       "MessageType": "GenericMessageType"}
         #                      }
         #
-        input_topic_dict, output_topic_dict = self.map_input_and_output_names_to_topics(config_path)
+        input_topic_dict, output_topic_dict = map_input_and_output_names_to_topics(config_path)
 
         self.set_up_subscriptions(input_topic_dict)
 
@@ -236,43 +276,7 @@ class ProcessingNode(Node):
         return config
 
 
-    def map_input_and_output_names_to_topics(self, config: dict) -> tuple[dict, dict]:
-        """
-        Load the actual mappings of input and output names
-
-        Args:
-            config (dict): Config dict that specifies requested inputs and outputs and relevant 
-            information about those inputs and outputs
-        
-        Returns:
-            input topic (dict): Dict specifying which topics to subscribe to and what fields of 
-            those topics are carrying which input information
-
-            output topic (dict): Dict specifying which topics to publish and what fields of those 
-            topics carry what information
-        """
-
-        input_topic_dict = {}
-        output_topic_dict = {}
-
-        for key in config['Inputs']:
-            topic = config['Inputs'][key]['Topic']
-            field = config['Inputs'][key]['Field']
-            if topic not in input_topic_dict:
-                input_topic_dict[topic] = {key: field}
-            else:
-                input_topic_dict[topic][key] = field
-
-        for key in config['Outputs']:
-            topic = config['Outputs'][key]['Topic']
-            field = config['Outputs'][key]['Field']
-            if topic not in output_topic_dict:
-                output_topic_dict[topic] = {key: field}
-                output_topic_dict[topic]['MessageType'] = config['Outputs'][key]['MessageType']
-            else:
-                output_topic_dict[topic][key] = field
-
-        return input_topic_dict, output_topic_dict
+    
 
     def import_needed_modules(self, config: dict):
         """
