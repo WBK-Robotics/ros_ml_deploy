@@ -9,6 +9,58 @@ from ros2topic.api import get_msg_class
 
 
 
+def check_if_config_is_valid(config: dict):
+    """
+    Method that checks if the given config has:
+    - Inputs without a 'Topic' or 'Field'
+    - Outputs without a 'Topic' or 'Field' or 'MessageType'
+    - 'MessageType' in 'Outputs' that are not featured in 'Imports'
+    - 'Imports' without a 'Package' or 'Module'
+
+    Args:
+        config (dict): The config dict to be checked
+    """
+    config_is_valid = True
+
+    error_message = ""
+
+    if "Inputs" not in config:
+        config["Inputs"] = []
+
+    for input_name in config["Inputs"]:
+        for necessary_part in ["Topic", "Field"]:
+            if necessary_part not in config["Inputs"][input_name]:
+                error_message += f"Config Format Error: Input {input_name} has no '{necessary_part}' \n"
+                config_is_valid = False
+
+    if "Imports" not in config:
+        config["Imports"] = []
+
+    for import_name in config["Imports"]:
+        for necessary_part in ["Package", "Module"]:
+            if necessary_part not in config["Imports"][import_name]:
+                error_message += f"Config Format Error: Import {import_name} has no '{necessary_part}' \n"
+                config_is_valid = False
+
+    if "Outputs" not in config:
+        config["Outputs"] = []
+
+    for output_name in config["Outputs"]:
+        for necessary_part in ["Topic", "Field"]:
+            if necessary_part not in config["Outputs"][output_name]:
+                error_message += f"Config Format Error: Output {output_name} has no '{necessary_part}' \n"
+                config_is_valid = False
+        if "MessageType" not in config["Outputs"][output_name]:
+            error_message += f"Config Format Error: Output {output_name} has no 'MessageType' \n"
+            config_is_valid = False
+        elif config["Outputs"][output_name]["MessageType"] not in config["Imports"]:
+            error_message += f"Config Format Error: Message Type {config['Outputs'][output_name]['MessageType']} requested by Output '{output_name}' not in 'Imports' \n"
+            config_is_valid = False
+
+    return config_is_valid, error_message
+        
+
+
 
 class ProcessingNode(Node):
     """
@@ -54,7 +106,11 @@ class ProcessingNode(Node):
 
         config_path = self.load_config(config_path)
 
-        self.check_if_config_is_valid(config_path)
+        config_is_valid, error_message = check_if_config_is_valid(config_path)
+        if not config_is_valid:
+            rclpy.logging.get_logger("processing_node").error(error_message)
+            rclpy.shutdown()
+            sys.exit()
 
         # Dict that contains all supported message types and the necessary interface
         # to construct an instance of them
@@ -179,58 +235,6 @@ class ProcessingNode(Node):
 
         return config
 
-    @staticmethod
-    def check_if_config_is_valid(config: dict):
-        """
-        Method that checks if the given config has:
-        - Inputs without a 'Topic' or 'Field'
-        - Outputs without a 'Topic' or 'Field' or 'MessageType'
-        - 'MessageType' in 'Outputs' that are not featured in 'Imports'
-        - 'Imports' without a 'Package' or 'Module'
-
-        Args:
-            config (dict): The config dict to be checked
-        """
-        config_is_valid = True
-
-        error_message = ""
-
-        if "Inputs" not in config:
-            config["Inputs"] = []
-
-        for input_name in config["Inputs"]:
-            for necessary_part in ["Topic", "Field"]:
-                if necessary_part not in config["Inputs"][input_name]:
-                    error_message += f"Config Format Error: Input {input_name} has no '{necessary_part}' \n"
-                    config_is_valid = False
-
-        if "Imports" not in config:
-            config["Imports"] = []
-
-        for import_name in config["Imports"]:
-            for necessary_part in ["Package", "Module"]:
-                if necessary_part not in config["Imports"][import_name]:
-                    error_message += f"Config Format Error: Import {import_name} has no '{necessary_part}' \n"
-                    config_is_valid = False
-
-        if "Outputs" not in config:
-            config["Outputs"] = []
-
-        for output_name in config["Outputs"]:
-            for necessary_part in ["Topic", "Field"]:
-                if necessary_part not in config["Outputs"][output_name]:
-                    error_message += f"Config Format Error: Output {output_name} has no '{necessary_part}' \n"
-                    config_is_valid = False
-            if "MessageType" not in config["Outputs"][output_name]:
-                error_message += f"Config Format Error: Output {output_name} has no 'MessageType' \n"
-                config_is_valid = False
-            elif config["Outputs"][output_name]["MessageType"] not in config["Imports"]:
-                error_message += f"Config Format Error: Message Type {config['Outputs'][output_name]['MessageType']} requested by Output '{output_name}' not in 'Imports' \n"
-                config_is_valid = False
-        if not config_is_valid:
-            rclpy.logging.get_logger("processing_node").error(error_message)
-            rclpy.shutdown()
-            sys.exit()
 
     def map_input_and_output_names_to_topics(self, config: dict) -> tuple[dict, dict]:
         """
