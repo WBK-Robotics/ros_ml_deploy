@@ -111,7 +111,7 @@ def test_call_function_with_current_parameters():
 
     result = node.call_function_with_current_parameters(test_input)
 
-    expected = 42, {"float parameter": "float parameter", "int parameter": "int parameter"}
+    expected = test_input, {"float parameter": "float parameter", "int parameter": "int parameter"}
     assert result == expected
     rclpy.shutdown()
 
