@@ -1,6 +1,6 @@
 import pytest
 import yaml
-from processing_node import ProcessingNode
+from processing_node.processing_node import ProcessingNode
 
 import os
 import ament_index_python.packages
@@ -17,7 +17,7 @@ def get_config_file_path(filename):
 
 
 def test_valid_configuration_file():
-    tmp_path = get_config_file_path("config.yaml")
+    config_path = get_config_file_path("config.yaml")
     # Arrange
     config_dict = {
         "Inputs": {
@@ -52,7 +52,7 @@ def test_valid_configuration_file():
             }
         }
     }
-    config_path = tmp_path / "config.yaml"
+
     with open(config_path, "w") as file:
         yaml.dump(config_dict, file)
     
@@ -62,3 +62,7 @@ def test_valid_configuration_file():
     
     # Assert
     assert loaded_config == config_dict
+
+
+if __name__ == '__main__':
+    pytest.main(['-vv', '-s', __file__])
