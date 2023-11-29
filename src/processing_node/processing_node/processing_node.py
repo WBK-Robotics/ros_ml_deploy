@@ -30,7 +30,7 @@ class ProcessingNode(Node):
         in construction   
     """
 
-    def __init__(self, func: callable, frequency: float=30.0):
+    def __init__(self, func: callable, config:str=None, frequency: float=30.0):
         """
         Initializes the ProcessingNode with a given function.
 
@@ -44,12 +44,13 @@ class ProcessingNode(Node):
         super().__init__('processing_node')
 
         # Config path is expected to be given as an argument when starting the node
-        try:
-            config_path = sys.argv[1]
-        except IndexError:
-            self.get_logger().error("Missing argument: config path")
-            rclpy.shutdown()
-            sys.exit()
+        if config is None:
+            try:
+                config_path = sys.argv[1]
+            except IndexError:
+                self.get_logger().error("Missing argument: config path")
+                rclpy.shutdown()
+                sys.exit()
 
         config = self.load_config(config_path)
 
