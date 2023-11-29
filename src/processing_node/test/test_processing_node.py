@@ -1,6 +1,6 @@
 import pytest
 import yaml
-from processing_node.processing_node import ProcessingNode, check_if_config_is_valid
+from processing_node.processing_node import ProcessingNode, check_if_config_is_valid, map_input_and_output_names_to_topics
 import rclpy
 import os
 import ament_index_python.packages
@@ -69,28 +69,44 @@ def get_config_file_path(filename):
     return config_file_path
 
 def test_config_validation():
-    # Arrange
-    # Act
-    # Assert
+
     assert check_if_config_is_valid(valid_config)[0] == True
     assert check_if_config_is_valid(invalid_config)[0] == False
+
+
+def test_map_input_and_output_names_to_topics():
+    expected_input_topic_dict = {
+        "sensor_data": {
+            "Motor Current 1": ["data"]
+        }
+    }
+    expected_output_topic_dict = {
+        "ExampleFloat": {
+            "float parameter": ["data"],
+            "MessageType": "Float32"
+        },
+        "ExampleInt": {
+            "int parameter": ["data"],
+            "MessageType": "Int16"
+        }
+    }
+    received_input_topic_dict, received_output_topic_dict = map_input_and_output_names_to_topics(valid_config)
+
+    assert received_input_topic_dict == expected_input_topic_dict
+    assert received_output_topic_dict == expected_output_topic_dict
 
 
 
 def test_config_loading():
     rclpy.init()
     config_path = get_config_file_path("config.yaml")
-    # Arrange
-    
 
     with open(config_path, "w") as file:
         yaml.dump(valid_config, file)
     
-    # Act
     node = ProcessingNode(lambda x: x,config_path=config_path)  # Dummy function
     loaded_config = node.load_config(str(config_path))
     
-    # Assert
     assert loaded_config == valid_config
 
 
