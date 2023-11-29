@@ -5,6 +5,8 @@ import rclpy
 import os
 import ament_index_python.packages
 
+from unittest.mock import MagicMock
+
 
 
 valid_config = {
@@ -56,9 +58,6 @@ invalid_config = {
 
 }
 
-
-
-
 def get_config_file_path(filename):
     # Get the directory of the package
     package_directory = ament_index_python.packages.get_package_share_directory('processing_node')
@@ -67,6 +66,11 @@ def get_config_file_path(filename):
     config_file_path = os.path.join(package_directory, 'test','test_config', filename)
 
     return config_file_path
+
+config_path = get_config_file_path("config.yaml")
+
+
+
 
 def test_config_validation():
 
@@ -95,11 +99,25 @@ def test_map_input_and_output_names_to_topics():
     assert received_input_topic_dict == expected_input_topic_dict
     assert received_output_topic_dict == expected_output_topic_dict
 
+def test_call_function_with_current_parameters():
+    TestTypeDict = {"float parameter": float, "int parameter": int}
+    
+    def some_function_to_test(main_value:int, parameters: TestTypeDict):
+        return parameters
+    rclpy.init()
+    node = ProcessingNode(some_function_to_test,config_path=config_path)
+    node.get_parameter = MagicMock(side_effect=lambda param: MagicMock(value=param))
+    test_input = {"main_value": 42}  # Example input
+
+    result = node.call_function_with_current_parameters(test_input)
+
+    expected = {"float parameter": "float parameter", "int parameter": "int parameter"}
+    assert result == expected
+    rclpy.shutdown()
 
 
 def test_config_loading():
     rclpy.init()
-    config_path = get_config_file_path("config.yaml")
 
     with open(config_path, "w") as file:
         yaml.dump(valid_config, file)
@@ -108,6 +126,9 @@ def test_config_loading():
     loaded_config = node.load_config(str(config_path))
     
     assert loaded_config == valid_config
+    rclpy.shutdown()
+
+
 
 
 if __name__ == '__main__':
