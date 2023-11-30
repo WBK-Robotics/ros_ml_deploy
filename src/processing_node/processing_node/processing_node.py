@@ -457,7 +457,7 @@ def main():
     """
 
     rclpy.init()
-    node = ProcessingNode(some_function_to_test, 2)
+    node = ProcessingNode(some_function_to_test)
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
