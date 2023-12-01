@@ -27,12 +27,6 @@ class TestProcessingNodeIntegration(unittest.TestCase):
     def setUp(self):
         self.node = rclpy.create_node('test_processing_node_integration')
 
-        self.second_executor = SingleThreadedExecutor()
-        self.processsing_node = ProcessingNode(weird_function, get_config_file_path('config.yaml'))
-        self.processsing_node.set_parameters([rclpy.parameter.Parameter('test int', value=8)])
-        self.second_executor.add_node(self.processsing_node)
-        self.second_executor.add_node(self.node)
-
     def tearDown(self):
         self.node.destroy_node()
     
@@ -49,18 +43,27 @@ class TestProcessingNodeIntegration(unittest.TestCase):
         msg = Float32()
         msg.data = 20.0
 
-        try:
-            end_time = time.time() + 30
-            while time.time() < end_time:
-                
-                pub.publish(msg)
+        pub.publish(msg)
 
-                self.second_executor.spin_once()
+        self.second_executor = SingleThreadedExecutor()
+        self.processsing_node = ProcessingNode(weird_function, get_config_file_path('config.yaml'))
+        self.processsing_node.set_parameters([rclpy.parameter.Parameter('test int', value=8)])
+        self.second_executor.add_node(self.processsing_node)
+        self.second_executor.add_node(self.node)
 
-                if len(received_floats) > 2:
-                    break
-            assert received_floats[0] == msg.data*5, f'Calculating output from input using the specified function does not work'
-            assert received_ints[0] == 8, f'Parameter setting does not work'
-        finally:
-            self.node.destroy_subscription(sub_float)
+        end_time = time.time() + 30
+        while time.time() < end_time:
+            
+            pub.publish(msg)
+
+            self.second_executor.spin_once()
+
+            if len(received_floats) > 2:
+                break
+        assert received_floats[0] == msg.data*5, f'Calculating output from input using the specified function does not work'
+        assert received_ints[0] == 8, f'Parameter setting does not work'
+
+        self.processsing_node.destroy_node()
+        
+        
 
