@@ -1,37 +1,9 @@
-name: ROS Humble CI
-
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
+on: push
 jobs:
-  build-and-test:
+  docker-ros:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
-
-    - name: Set up ROS environment
-      uses: ros-tooling/setup-ros@v0.2
-      with:
-        required-ros-distributions: humble
-
-    - name: Install dependencies
-      run: |
-        sudo apt update
-        rosdep update
-        rosdep install --from-paths src --ignore-src --rosdistro humble -y
-
-    - name: Build the ROS package
-      run: |
-        source /opt/ros/humble/setup.bash
-        colcon build
-
-    - name: Run tests
-      run: |
-        source /opt/ros/humble/setup.bash
-        colcon test
-        colcon test-result --verbose
+      - uses: ika-rwth-aachen/docker-ros@v1.3.1
+        with:
+          base-image: rwthika/ros2:humble
+          command: colcon test
