@@ -27,24 +27,19 @@ class TestProcessingNodeIntegration(unittest.TestCase):
     def setUp(self):
         self.node = rclpy.create_node('test_processing_node_integration')
 
-    def tearDown(self):
-        self.node.destroy_node()
-
-    def test_processing_node_output(self):
-
         pub = self.node.create_publisher(Float32, 'sensor_data', 10)
 
-        received_ints = []
-        received_floats = []
+        self.received_ints = []
+        self.received_floats = []
 
         sub_float = self.node.create_subscription(Float32,
             'ExampleFloat',
-            lambda msg: received_floats.append(msg.data),
+            lambda msg: self.received_floats.append(msg.data),
             10
         )
         sub_int = self.node.create_subscription(Int16,
             'ExampleInt',
-            lambda msg: received_ints.append(msg.data),
+            lambda msg: self.received_ints.append(msg.data),
             10
         )
 
@@ -59,16 +54,47 @@ class TestProcessingNodeIntegration(unittest.TestCase):
         second_executor.add_node(processsing_node)
         second_executor.add_node(self.node)
 
-        end_time = time.time() + 30
+        end_time = time.time() + 10
         while time.time() < end_time:
 
             pub.publish(msg)
 
             second_executor.spin_once()
 
-            if len(received_floats) > 2:
+            if len(self.received_ints)*len(self.received_floats)>1:
                 break
-        assert received_floats[0] == msg.data*5, 'Calculating output from input using the specified function does not work'
-        assert received_ints[0] == 8, 'Parameter setting does not work'
 
         processsing_node.destroy_node()
+
+    def tearDown(self):
+        self.node.destroy_node()
+
+    def test_processing_node_float_publisher(self):
+        """
+        This tests wether or not the ProcessingNode publishes on the topic "ExampleFloat" given in the
+        test_config
+        """
+        assert len(self.received_floats)>0, 'Did not receive messages from topic "ExampleFloat"'
+
+    def test_processing_node_int_publisher(self):
+        """
+        This tests wether or not the ProcessingNode publishes on the topic "ExampleInt" given in the
+        test_config
+        """
+        assert len(self.received_ints)>0, 'Did not receive messages from topic "ExampleInt"'
+
+    def test_processing_node_calculate_output(self):
+        """
+        This tests wether or not the ProcessingNode correctly uses the function specified in the
+        construction call to calculate an output from the given Input on topic "Motor Current 1"
+        and sends this output on topic "ExampleFloat"
+        """
+        assert self.received_floats[0] == 100.0, 'Calculating output from input using the specified function does not work'
+
+    def test_processing_node_setting_parameters(self):
+        """
+        This tests wether or not the parameter "test int" demanded by the function specified in
+        the construction call can be modified. The function returns this parameter and the
+        ProcessingNode is supposed to publish it on the topic "ExampleInt"
+        """
+        assert self.received_ints[0] == 8, 'Parameter setting does not work'
