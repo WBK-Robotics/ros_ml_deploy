@@ -14,7 +14,8 @@ valid_config = {
         "Motor Current 1": {
             "Description": "Example input parameter, for instance emulating a motor current",
             "Topic": "sensor_data",
-            "Field": ["data"]
+            "Field": ["data"],
+            "MessageType": "Float32"
         }
     },
     "Outputs": {
@@ -81,7 +82,8 @@ def test_config_validation():
 def test_map_input_and_output_names_to_topics():
     expected_input_topic_dict = {
         "sensor_data": {
-            "Motor Current 1": ["data"]
+            "Motor Current 1": ["data"],
+            "MessageType": "Float32"
         }
     }
     expected_output_topic_dict = {

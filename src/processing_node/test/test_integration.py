@@ -46,8 +46,6 @@ class TestProcessingNodeIntegration(unittest.TestCase):
         msg = Float32()
         msg.data = 20.0
 
-        pub.publish(msg)
-
         second_executor = SingleThreadedExecutor()
         processsing_node = ProcessingNode(sample_function, get_config_file_path('config.yaml'))
         processsing_node.set_parameters([rclpy.parameter.Parameter('test int', value=8)])
