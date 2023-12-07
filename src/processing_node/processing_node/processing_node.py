@@ -1,11 +1,9 @@
 import sys
 import importlib
-import time
 
 import rclpy
 import yaml
 from rclpy.node import Node
-from ros2topic.api import get_msg_class
 
 
 
@@ -64,47 +62,46 @@ def check_if_config_is_valid(config: dict):
             config_is_valid = False
 
     return config_is_valid, error_message
-        
 
 
 def map_input_and_output_names_to_topics(config: dict) -> tuple[dict, dict]:
-        """
-        Load the actual mappings of input and output names
+    """
+    Load the actual mappings of input and output names
 
-        Args:
-            config (dict): Config dict that specifies requested inputs and outputs and relevant 
-            information about those inputs and outputs
-        
-        Returns:
-            input topic (dict): Dict specifying which topics to subscribe to and what fields of 
-            those topics are carrying which input information
+    Args:
+        config (dict): Config dict that specifies requested inputs and outputs and relevant 
+        information about those inputs and outputs
+    
+    Returns:
+        input topic (dict): Dict specifying which topics to subscribe to and what fields of 
+        those topics are carrying which input information
 
-            output topic (dict): Dict specifying which topics to publish and what fields of those 
-            topics carry what information
-        """
+        output topic (dict): Dict specifying which topics to publish and what fields of those 
+        topics carry what information
+    """
 
-        input_topic_dict = {}
-        output_topic_dict = {}
+    input_topic_dict = {}
+    output_topic_dict = {}
 
-        for key in config['Inputs']:
-            topic = config['Inputs'][key]['Topic']
-            field = config['Inputs'][key]['Field']
-            if topic not in input_topic_dict:
-                input_topic_dict[topic] = {key: field}
-                input_topic_dict[topic]['MessageType'] = config['Inputs'][key]['MessageType']
-            else:
-                input_topic_dict[topic][key] = field
+    for key in config['Inputs']:
+        topic = config['Inputs'][key]['Topic']
+        field = config['Inputs'][key]['Field']
+        if topic not in input_topic_dict:
+            input_topic_dict[topic] = {key: field}
+            input_topic_dict[topic]['MessageType'] = config['Inputs'][key]['MessageType']
+        else:
+            input_topic_dict[topic][key] = field
 
-        for key in config['Outputs']:
-            topic = config['Outputs'][key]['Topic']
-            field = config['Outputs'][key]['Field']
-            if topic not in output_topic_dict:
-                output_topic_dict[topic] = {key: field}
-                output_topic_dict[topic]['MessageType'] = config['Outputs'][key]['MessageType']
-            else:
-                output_topic_dict[topic][key] = field
+    for key in config['Outputs']:
+        topic = config['Outputs'][key]['Topic']
+        field = config['Outputs'][key]['Field']
+        if topic not in output_topic_dict:
+            output_topic_dict[topic] = {key: field}
+            output_topic_dict[topic]['MessageType'] = config['Outputs'][key]['MessageType']
+        else:
+            output_topic_dict[topic][key] = field
 
-        return input_topic_dict, output_topic_dict
+    return input_topic_dict, output_topic_dict
 
 
 
@@ -174,7 +171,7 @@ class ProcessingNode(Node):
         # input_topic_dict = {"Input_Topic_1":
         #                       {"Input_1": ["Field_1", "Input_1"],
         #                        "Input_2": ["Field_1", "Input_2"],
-        #                        "MessageType": "GenericMessageType"} 
+        #                        "MessageType": "GenericMessageType"}
         #                    }
         #
         # output_topic_dict = {"Output_Topic_1":
@@ -283,8 +280,6 @@ class ProcessingNode(Node):
 
         return config
 
-
-    
 
     def import_needed_modules(self, config: dict):
         """
