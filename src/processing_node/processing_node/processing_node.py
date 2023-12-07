@@ -35,7 +35,7 @@ def check_if_config_is_valid(config: dict):
         if "MessageType" not in config["Inputs"][input_name]:
             error_message += f"Config Format Error: Input {input_name} has no 'MessageType' \n"
             config_is_valid = False
-        elif config["Outputs"][input_name]["MessageType"] not in config["Imports"]:
+        elif config["Inputs"][input_name]["MessageType"] not in config["Imports"]:
             error_message += f"Config Format Error: Message Type {config['Inputs'][input_name]['MessageType']} requested by Input '{input_name}' not in 'Imports' \n"
             config_is_valid = False
 
@@ -161,7 +161,7 @@ class ProcessingNode(Node):
 
         # Dict that contains all supported message types and the necessary interface
         # to construct an instance of them
-        self.supported_message_types_to_publish = {}
+        self.supported_message_types = {}
 
         # Create data dict which carries the input data
         self.aggregated_input_data = dict.fromkeys(config['Inputs'].keys(), [])
@@ -300,7 +300,7 @@ class ProcessingNode(Node):
                 package = import_dict[to_import]["Package"]
                 module = import_dict[to_import]["Module"]
                 message_type_class = getattr(importlib.import_module(package), module)
-                self.supported_message_types_to_publish[to_import] = message_type_class
+                self.supported_message_types[to_import] = message_type_class
         except:
             self.get_logger().warn("Import of message based modules specified in config failed!")
 
@@ -315,7 +315,7 @@ class ProcessingNode(Node):
         """
 
         for topic_name in topic_dict:
-            msg_type = topic_dict[topic_name]['MessageType']
+            msg_type = self.supported_message_types[topic_dict[topic_name]['MessageType']]
             self.create_subscription(msg_type,
                 topic_name,
                 lambda msg, field_names=topic_dict[topic_name] : self.listener_callback(msg, field_names),
@@ -337,10 +337,10 @@ class ProcessingNode(Node):
 
         for topic_name in topic_dict:
             message_type_string = topic_dict[topic_name]['MessageType']
-            if message_type_string not in self.supported_message_types_to_publish:
+            if message_type_string not in self.supported_message_types:
                 self.get_logger().warn(f'Topic name {topic_name} cannot be published, Message Type is unknown')
             else:
-                topics_to_publish_dict[topic_name] = {'Publisher': self.create_publisher(self.supported_message_types_to_publish[message_type_string],
+                topics_to_publish_dict[topic_name] = {'Publisher': self.create_publisher(self.supported_message_types[message_type_string],
                                                                                         topic_name,
                                                                                         10)}
 
@@ -391,7 +391,7 @@ class ProcessingNode(Node):
 
         # Read the relevant message field and append it to the relevant list in the data dict
         for input_name in field_names:
-            if input_name is not 'MessageType':
+            if input_name != 'MessageType':
                 # Loop over attributes to reach deeper message levels until the actual data is reached
                 base = msg
                 # Check if field name is a string and the message therefore only 1 level deep
@@ -420,7 +420,7 @@ class ProcessingNode(Node):
         if processed_data is not None:
             for topic in self.publisher_dict:
                 message_type_string = self.publisher_dict[topic]['MessageType']
-                message_type = self.supported_message_types_to_publish[message_type_string]
+                message_type = self.supported_message_types[message_type_string]
                 output_msg = message_type()
                 for output in self.publisher_dict[topic]['Fields']:
                     field = self.publisher_dict[topic]['Fields'][output]
