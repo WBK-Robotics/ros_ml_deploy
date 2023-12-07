@@ -12,9 +12,9 @@ from ros2topic.api import get_msg_class
 def check_if_config_is_valid(config: dict):
     """
     Method that checks if the given config has:
-    - Inputs without a 'Topic' or 'Field'
+    - Inputs without a 'Topic' or 'Field' or 'MessageType'
     - Outputs without a 'Topic' or 'Field' or 'MessageType'
-    - 'MessageType' in 'Outputs' that are not featured in 'Imports'
+    - 'MessageType' in 'Outputs' or 'Inputs' that are not featured in 'Imports'
     - 'Imports' without a 'Package' or 'Module'
 
     Args:
@@ -32,6 +32,12 @@ def check_if_config_is_valid(config: dict):
             if necessary_part not in config["Inputs"][input_name]:
                 error_message += f"Config Format Error: Input {input_name} has no '{necessary_part}' \n"
                 config_is_valid = False
+        if "MessageType" not in config["Inputs"][input_name]:
+            error_message += f"Config Format Error: Input {input_name} has no 'MessageType' \n"
+            config_is_valid = False
+        elif config["Outputs"][input_name]["MessageType"] not in config["Imports"]:
+            error_message += f"Config Format Error: Message Type {config['Inputs'][input_name]['MessageType']} requested by Input '{input_name}' not in 'Imports' \n"
+            config_is_valid = False
 
     if "Imports" not in config:
         config["Imports"] = []
@@ -307,30 +313,7 @@ class ProcessingNode(Node):
         """
 
         for topic_name in topic_dict:
-            subscribed = False
-            timeout = time.time() + 4
-            while not subscribed:
-                # Get all currently publishing topics
-                topic_list = self.get_topic_names_and_types()
-                # Check if topic we want is in currently publishing topics
-                for topic_tuple in topic_list:
-                    if topic_name in topic_tuple[0]:
-                        # Get msg type
-                        msg_type = get_msg_class(self, topic_tuple[0], include_hidden_topics=True)
-                        # Set up subscription
-                        self.create_subscription(msg_type,
-                                                topic_tuple[0],
-                                                lambda msg, field_names=topic_dict[topic_name] : self.listener_callback(msg, field_names),
-                                                10)
-                        # Toggle bool
-                        subscribed = True
-                        self.get_logger().info(f"Subscribed to topic {topic_name} which publishes {list(topic_dict[topic_name])}")
-                if time.time() > timeout:
-                    self.get_logger().warning(f"Input topic {topic_name} was not found within 60 Seconds, no subscription was set up")
-                    break
 
-                # Wait half a second
-                time.sleep(0.5)
 
     def set_up_publishers(self, topic_dict: dict) -> dict:
         """
