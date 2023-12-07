@@ -12,7 +12,7 @@ from processing_node.processing_node import ProcessingNode
 
 test_parameter_dict = {'test int': int}
 
-def weird_function(main_value, parameters: test_parameter_dict):
+def sample_function(main_value, parameters: test_parameter_dict):
     return {"float parameter": main_value["Motor Current 1"][0]*5, "int parameter": parameters['test int']}
 
 class TestProcessingNodeIntegration(unittest.TestCase):
@@ -49,7 +49,7 @@ class TestProcessingNodeIntegration(unittest.TestCase):
         pub.publish(msg)
 
         second_executor = SingleThreadedExecutor()
-        processsing_node = ProcessingNode(weird_function, get_config_file_path('config.yaml'))
+        processsing_node = ProcessingNode(sample_function, get_config_file_path('config.yaml'))
         processsing_node.set_parameters([rclpy.parameter.Parameter('test int', value=8)])
         second_executor.add_node(processsing_node)
         second_executor.add_node(self.node)
