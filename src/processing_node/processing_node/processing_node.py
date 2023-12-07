@@ -91,6 +91,7 @@ def map_input_and_output_names_to_topics(config: dict) -> tuple[dict, dict]:
             field = config['Inputs'][key]['Field']
             if topic not in input_topic_dict:
                 input_topic_dict[topic] = {key: field}
+                input_topic_dict[topic]['MessageType'] = config['Inputs'][key]['MessageType']
             else:
                 input_topic_dict[topic][key] = field
 
@@ -172,7 +173,8 @@ class ProcessingNode(Node):
         #
         # input_topic_dict = {"Input_Topic_1":
         #                       {"Input_1": ["Field_1", "Input_1"],
-        #                        "Input_2": ["Field_1", "Input_2"]}
+        #                        "Input_2": ["Field_1", "Input_2"],
+        #                        "MessageType": "GenericMessageType"} 
         #                    }
         #
         # output_topic_dict = {"Output_Topic_1":
@@ -313,7 +315,11 @@ class ProcessingNode(Node):
         """
 
         for topic_name in topic_dict:
-
+            msg_type = topic_dict[topic_name]['MessageType']
+            self.create_subscription(msg_type,
+                topic_name,
+                lambda msg, field_names=topic_dict[topic_name] : self.listener_callback(msg, field_names),
+                10)
 
     def set_up_publishers(self, topic_dict: dict) -> dict:
         """
@@ -385,17 +391,18 @@ class ProcessingNode(Node):
 
         # Read the relevant message field and append it to the relevant list in the data dict
         for input_name in field_names:
-            # Loop over attributes to reach deeper message levels until the actual data is reached
-            base = msg
-            # Check if field name is a string and the message therefore only 1 level deep
-            if isinstance(field_names[input_name], str):
-                base = getattr(base, field_names[input_name])
-            else:
-                for i in range(len(field_names[input_name])):
-                    attribute = field_names[input_name][i]
-                    base = getattr(base, attribute)
-            # Does not work with append for whatever reason
-            self.aggregated_input_data[input_name] = self.aggregated_input_data[input_name] + [base]
+            if input_name is not 'MessageType':
+                # Loop over attributes to reach deeper message levels until the actual data is reached
+                base = msg
+                # Check if field name is a string and the message therefore only 1 level deep
+                if isinstance(field_names[input_name], str):
+                    base = getattr(base, field_names[input_name])
+                else:
+                    for i in range(len(field_names[input_name])):
+                        attribute = field_names[input_name][i]
+                        base = getattr(base, attribute)
+                # Does not work with append for whatever reason
+                self.aggregated_input_data[input_name] = self.aggregated_input_data[input_name] + [base]
 
     def execute_function(self):
         """
