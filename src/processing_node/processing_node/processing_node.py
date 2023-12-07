@@ -144,9 +144,9 @@ class ProcessingNode(Node):
                 rclpy.shutdown()
                 sys.exit()
 
-        config_path = self.load_config(config_path)
+        config = self.load_config(config_path)
 
-        config_is_valid, error_message = check_if_config_is_valid(config_path)
+        config_is_valid, error_message = check_if_config_is_valid(config)
         if not config_is_valid:
             rclpy.logging.get_logger("processing_node").error(error_message)
             rclpy.shutdown()
@@ -157,9 +157,9 @@ class ProcessingNode(Node):
         self.supported_message_types_to_publish = {}
 
         # Create data dict which carries the input data
-        self.aggregated_input_data = dict.fromkeys(config_path['Inputs'].keys(), [])
+        self.aggregated_input_data = dict.fromkeys(config['Inputs'].keys(), [])
 
-        self.import_needed_modules(config_path)
+        self.import_needed_modules(config)
 
         # Translate the information from the config into an input and output dict
         # they look like
@@ -175,7 +175,7 @@ class ProcessingNode(Node):
         #                       "MessageType": "GenericMessageType"}
         #                      }
         #
-        input_topic_dict, output_topic_dict = map_input_and_output_names_to_topics(config_path)
+        input_topic_dict, output_topic_dict = map_input_and_output_names_to_topics(config)
 
         self.set_up_subscriptions(input_topic_dict)
 
