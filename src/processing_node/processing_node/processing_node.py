@@ -115,6 +115,7 @@ class BaseProcessor:
         # check that the processor object is a class which has a callable execute and set_parameters function:
         
         
+        self.supported_message_types_to_publish={}
         
         # load the config file:
         self._config = self.load_config(config_path)
@@ -174,7 +175,7 @@ class BaseProcessor:
         except:
             self.get_logger().warn("Import of message based modules specified in config failed!")
 
-def listener_callback(self, msg, field_names: dict):
+    def listener_callback(self, msg, field_names: dict):
         """
         Function that is called whenever something is published to a subscribed topic 
         and modifies the data dict accordingly
@@ -234,7 +235,6 @@ class ProcessingNode(Node, BaseProcessor):
         BaseProcessor.__init__(self,func,config_path)
         
         input_topic_dict, output_topic_dict = map_input_and_output_names_to_topics(self._config)
-        self.import_needed_modules(self._config)
 
         self.set_up_subscriptions(input_topic_dict)
 
