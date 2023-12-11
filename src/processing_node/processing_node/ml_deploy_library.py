@@ -3,6 +3,31 @@ import os
 
 import yaml
 
+def set_nested_attribute(parent: object, part_list: list, new_value:object):
+        """
+        Helper function that sets an attribute within a nested object structure
+
+        Args:
+            parent (object): object for which an attribute is to be set
+            
+            part_list (list): path to the requested attribute in the form of ["nested_1", 
+            "nested_2", "attribute"] without restrictions on length
+
+            new_value (Attribute data type): the value the attribute is to be set to
+        
+        Returns:
+            parent (object): object with the now set attribute
+        """
+        final_attribute_index = len(part_list)-1
+        current_attribute = parent
+        for i, part in enumerate(part_list):
+            new_attribute = getattr(current_attribute, part)
+            if i == final_attribute_index:
+                setattr(current_attribute, part, new_value)
+            current_attribute = new_attribute
+
+        return parent  
+
 
 
 def check_if_config_is_valid(config: dict):

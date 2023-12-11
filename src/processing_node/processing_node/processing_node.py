@@ -29,12 +29,12 @@ class ProcessingNode(Node):
         in construction   
     """
 
-    def __init__(self, processor: callable, config_path:str=None, frequency: float=30.0):
+    def __init__(self, processor: object, config_path:str=None, frequency: float=30.0):
         """
         Initializes the ProcessingNode with a given function.
 
         Args:
-            func (function): Function with type annotations to set as parameters.
+            processor (object): Object that contains the function to be executed.
             frequency (float): Frequency at which the function should be called.
         """
 
@@ -49,10 +49,8 @@ class ProcessingNode(Node):
             raise ValueError(error_message)
 
         self.supported_message_types_to_publish= import_needed_modules(self._config)
-
         
         self.aggregated_input_data = dict.fromkeys(self._config['Inputs'].keys(), [])
-
         
         input_topic_dict, output_topic_dict = map_input_and_output_names_to_topics(self._config)
 
@@ -60,13 +58,13 @@ class ProcessingNode(Node):
         self.publisher_dict = self.set_up_publishers(output_topic_dict)
 
         self.processor = processor
-        self._declare_parameters_for_function(processor)
+        self._declare_parameters_for_processor(processor)
 
         # Set model timer period
         timer_period = 1.0 / frequency
 
         # Create timer that calls the processing function
-        self.timer = self.create_timer(timer_period, self.execute_function)
+        self.timer = self.create_timer(timer_period, self.execute_processor)
 
     def listener_callback(self, msg, field_names: dict):
         """
@@ -92,12 +90,12 @@ class ProcessingNode(Node):
             # Does not work with append for whatever reason
             self.aggregated_input_data[input_name] = self.aggregated_input_data[input_name] + [base]
 
-    def _declare_parameters_for_function(self, processor):
+    def _declare_parameters_for_processor(self, processor):
         """
         Declares ROS2 parameters for this node based on a given function's type annotations.
 
         Args:
-            func (function): Function with type annotations to set as parameters.
+            processor (object): Object that contains the function to be executed.
         """
 
         parameters = processor.get_parameters()
@@ -121,6 +119,17 @@ class ProcessingNode(Node):
         self.add_on_set_parameters_callback(self.parameter_callback)
 
     def parameter_callback(self,params):
+        """
+        Callback function that is called whenever a parameter is set
+        
+        Args:
+            params (list): list of parameters that were set
+            
+        Returns:
+            SetParametersResult: ROS2 result object that indicates 
+                                 whether the parameter setting was successful
+            
+        """
         param_dict = {}
         for individual_param in params:
             param_dict[individual_param.name] = individual_param.value
@@ -195,34 +204,8 @@ class ProcessingNode(Node):
                         topics_to_publish_dict[topic_name]['Fields'][key] = topic_dict[topic_name][key]
 
         return topics_to_publish_dict
-
-    @staticmethod
-    def set_nested_attribute(parent: object, part_list: list, new_value:object):
-        """
-        Helper function that sets an attribute within a nested object structure
-
-        Args:
-            parent (object): object for which an attribute is to be set
-            
-            part_list (list): path to the requested attribute in the form of ["nested_1", 
-            "nested_2", "attribute"] without restrictions on length
-
-            new_value (Attribute data type): the value the attribute is to be set to
-        
-        Returns:
-            parent (object): object with the now set attribute
-        """
-        final_attribute_index = len(part_list)-1
-        current_attribute = parent
-        for i, part in enumerate(part_list):
-            new_attribute = getattr(current_attribute, part)
-            if i == final_attribute_index:
-                setattr(current_attribute, part, new_value)
-            current_attribute = new_attribute
-
-        return parent    
-
-    def execute_function(self):
+  
+    def execute_processor(self):
         """
         Function that is called on a timer, sends collected input data to the 
         processing function and publishes the resulting output
@@ -247,7 +230,7 @@ class ProcessingNode(Node):
                         field = [field]
                     try:
                         data = processed_data[output]
-                        output_msg = self.set_nested_attribute(output_msg, field, data)
+                        output_msg = set_nested_attribute(output_msg, field, data)
                         self.publisher_dict[topic]['Publisher'].publish(output_msg)
                     except:
                         self.get_logger().warn(f'Output {output} not found in model output or wrong data type')
