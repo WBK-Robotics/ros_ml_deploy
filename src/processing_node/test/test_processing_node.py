@@ -1,7 +1,7 @@
 from typing import Any
 import pytest
 import yaml
-from processing_node.processing_node import ProcessingNode, check_if_config_is_valid, map_input_and_output_names_to_topics
+from processing_node.processing_node import ProcessingNode, check_if_config_is_valid, map_input_and_output_names_to_topics, load_config
 import rclpy
 import os
 import ament_index_python.packages
@@ -112,34 +112,15 @@ def test_map_input_and_output_names_to_topics():
     assert received_input_topic_dict == expected_input_topic_dict
     assert received_output_topic_dict == expected_output_topic_dict
 
-def test_call_function_with_current_parameters():
-
-    
-    rclpy.init()
-    some_processor = SomeProcessor()
-    node = ProcessingNode(some_processor ,config_path=config_path)
-    node.get_parameter = MagicMock(side_effect=lambda param: MagicMock(value=param))
-    test_input = 42 # Example input
-
-    result = node.call_function_with_current_parameters(test_input)
-
-    expected = test_input, {"float parameter": "float parameter", "int parameter": "int parameter"}
-    assert result == expected
-    rclpy.shutdown()
-
 
 def test_config_loading():
-    rclpy.init()
 
     with open(config_path, "w") as file:
         yaml.dump(valid_config, file)
-    
-    some_processor = SomeProcessor()
-    node = ProcessingNode(some_processor ,config_path=config_path)  # Dummy function
-    loaded_config = node.load_config(str(config_path))
+
+    loaded_config = load_config(str(config_path))
     
     assert loaded_config == valid_config
-    rclpy.shutdown()
 
 
 

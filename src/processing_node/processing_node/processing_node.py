@@ -99,86 +99,133 @@ def map_input_and_output_names_to_topics(config: dict) -> tuple[dict, dict]:
 
         return input_topic_dict, output_topic_dict
 
-class BaseProcessor:
-    def __init__(self,processor,config_path:str):
-        
-        has_execute = callable(getattr(processor, 'execute', None))
-        if not has_execute:
-            raise ValueError("The processor object must be a class which has a callable execute function.")
-        has_set_parameters = callable(getattr(processor, 'set_parameters', None))
-        if not has_set_parameters:
-            raise ValueError("The processor object must be a class which has a callable set_parameters function.")
-        has_get_parameters = callable(getattr(processor, 'get_parameters', None))
-        if not has_get_parameters:
-            raise ValueError("The processor object must be a class which has a callable get_parameters function.")
+def check_processor(processor: object) -> bool:
+    """
+    Check if the given object is a valid processor object
 
-        
-        # check that the config_path is a string and that the file exists:
-        if not isinstance(config_path,str):
+    Args:
+        processor (object): Object to be checked
+
+    Returns:
+        bool: True if the given object is a valid processor object, False otherwise
+
+    Raises:
+        ValueError: If the given object is not a valid processor object
+    """
+    has_execute = callable(getattr(processor, 'execute', None))
+    if not has_execute:
+        raise ValueError("The processor object must be a class which has a callable execute function.")
+    has_set_parameters = callable(getattr(processor, 'set_parameters', None))
+    if not has_set_parameters:
+        raise ValueError("The processor object must be a class which has a callable set_parameters function.")
+    has_get_parameters = callable(getattr(processor, 'get_parameters', None))
+    if not has_get_parameters:
+        raise ValueError("The processor object must be a class which has a callable get_parameters function.")
+    
+    return True
+
+def load_config(config_path: str) -> dict:
+    """
+    Loads config from path and returns it as a dict
+
+    Args:
+        config_path (String): Absolute path to the config file expected to be .yaml
+    
+    Returns:
+        config dict (dict): Contents of the config.yaml restructured into a dict
+    """
+    if not isinstance(config_path,str):
             raise ValueError("The config_path must be a string.")
-        if not os.path.isfile(config_path):
-            raise ValueError("The config_path must be a valid file path.")
-        
-        
-        self.supported_message_types_to_publish={}
-        
-        # load the config file:
-        self._config = self.load_config(config_path)
+    if not os.path.isfile(config_path):
+        raise ValueError("The config_path must be a valid file path.")
+    # Get dict of inputs from parameters
+    with open(config_path, 'r') as file:
+        try:
+            config = yaml.safe_load(file)
+        except yaml.YAMLError as e:
+            raise ValueError("While the config_path exists, it does not lead to a valid yaml file.")
 
+    return config
+
+def import_needed_modules( config: dict):
+    """
+    Imports Modules specified in config dict (needed for output message types)
+    Also adds the imported modules to the supported messsage types for output dict
+
+    Args:
+        config (dict): Config dict that specifies which modules to import from where
+    """
+    supported_message_types_to_publish = {}
+    try:
+        import_dict = config['Imports']
+        for to_import in import_dict:
+            package = import_dict[to_import]["Package"]
+            module = import_dict[to_import]["Module"]
+            message_type_class = getattr(importlib.import_module(package), module)
+            supported_message_types_to_publish[to_import] = message_type_class
+        return supported_message_types_to_publish
+    except:
+        raise ValueError("Import of message based modules specified in config failed!")
+
+
+class ProcessingNode(Node):
+    """
+    Ros2 node that sets up input subscribers and output publishers according
+    to a config and handles the data transfer to a processing function
+
+    Attributes:
+        supported_message_types_to_publish (dict): dict that is filled with imported message types
+        
+        aggregated_input_data (dict): dict that is filled with data gathered from
+        the set up subscribers to be used as input data for the processing model
+
+        publisher_dict (dict): dict containing the mapping information of output data to 
+        respective output publisher
+
+        function_to_execute (function): the processing function to be executed 
+
+        timer (Timer): Timer that calls function_to_execute with a frequency specified
+        in construction   
+    """
+
+    def __init__(self, processor: callable, config_path:str=None, frequency: float=30.0):
+        """
+        Initializes the ProcessingNode with a given function.
+
+        Args:
+            func (function): Function with type annotations to set as parameters.
+            frequency (float): Frequency at which the function should be called.
+        """
+
+        # init both base classes
+        Node.__init__(self, "processing_node")
+        check_processor(processor)
+
+        self._config = load_config(config_path)
         # check that the config file is valid:
         config_is_valid, error_message = check_if_config_is_valid(self._config)
-
         if not config_is_valid:
             raise ValueError(error_message)
+
+        self.supported_message_types_to_publish= import_needed_modules(self._config)
+
         
-        self.import_needed_modules(self._config)
         self.aggregated_input_data = dict.fromkeys(self._config['Inputs'].keys(), [])
 
+        
+        input_topic_dict, output_topic_dict = map_input_and_output_names_to_topics(self._config)
+
+        self.set_up_subscriptions(input_topic_dict)
+        self.publisher_dict = self.set_up_publishers(output_topic_dict)
 
         self.processor = processor
+        self._declare_parameters_for_function(processor)
 
-    def load_config(self, config_path: str) -> dict:
-        """
-        Loads config from path and returns it as a dict
+        # Set model timer period
+        timer_period = 1.0 / frequency
 
-        Args:
-            config_path (String): Absolute path to the config file expected to be .yaml
-        
-        Returns:
-            config dict (dict): Contents of the config.yaml restructured into a dict
-        """
-
-        # Get dict of inputs from parameters
-        with open(config_path, 'r') as file:
-            try:
-                config = yaml.safe_load(file)
-            except yaml.YAMLError as e:
-                self.get_logger().error("Specified path does not lead to a valid yaml file")
-                if hasattr(e, 'problem_mark'):
-                    if e.context is not None:
-                        self.get_logger().warn(str(e.problem_mark) + '\n' + str(e.problem) + ' ' + str(e.context))
-                rclpy.shutdown()
-                sys.exit()
-
-        return config
-
-    def import_needed_modules(self, config: dict):
-        """
-        Imports Modules specified in config dict (needed for output message types)
-        Also adds the imported modules to the supported messsage types for output dict
-
-        Args:
-            config (dict): Config dict that specifies which modules to import from where
-        """
-        try:
-            import_dict = config['Imports']
-            for to_import in import_dict:
-                package = import_dict[to_import]["Package"]
-                module = import_dict[to_import]["Module"]
-                message_type_class = getattr(importlib.import_module(package), module)
-                self.supported_message_types_to_publish[to_import] = message_type_class
-        except:
-            self.get_logger().warn("Import of message based modules specified in config failed!")
+        # Create timer that calls the processing function
+        self.timer = self.create_timer(timer_period, self.execute_function)
 
     def listener_callback(self, msg, field_names: dict):
         """
@@ -203,54 +250,6 @@ class BaseProcessor:
                     base = getattr(base, attribute)
             # Does not work with append for whatever reason
             self.aggregated_input_data[input_name] = self.aggregated_input_data[input_name] + [base]
-
-class ProcessingNode(Node, BaseProcessor):
-    """
-    Ros2 node that sets up input subscribers and output publishers according
-    to a config and handles the data transfer to a processing function
-
-    Attributes:
-        supported_message_types_to_publish (dict): dict that is filled with imported message types
-        
-        aggregated_input_data (dict): dict that is filled with data gathered from
-        the set up subscribers to be used as input data for the processing model
-
-        publisher_dict (dict): dict containing the mapping information of output data to 
-        respective output publisher
-
-        function_to_execute (function): the processing function to be executed 
-
-        timer (Timer): Timer that calls function_to_execute with a frequency specified
-        in construction   
-    """
-
-    def __init__(self, func: callable, config_path:str=None, frequency: float=30.0):
-        """
-        Initializes the ProcessingNode with a given function.
-
-        Args:
-            func (function): Function with type annotations to set as parameters.
-            frequency (float): Frequency at which the function should be called.
-        """
-
-        # init both base classes
-        Node.__init__(self, "processing_node")
-        BaseProcessor.__init__(self,func,config_path)
-        
-        input_topic_dict, output_topic_dict = map_input_and_output_names_to_topics(self._config)
-
-        self.set_up_subscriptions(input_topic_dict)
-
-        self.publisher_dict = self.set_up_publishers(output_topic_dict)
-
-        self.function_to_execute = func
-        self._declare_parameters_for_function(func)
-
-        # Set model timer period
-        timer_period = 1.0 / frequency
-
-        # Create timer that calls the processing function
-        self.timer = self.create_timer(timer_period, self.execute_function)
 
     def _declare_parameters_for_function(self, processor):
         """
@@ -280,20 +279,7 @@ class ProcessingNode(Node, BaseProcessor):
 
         self.add_on_set_parameters_callback(self.parameter_callback)
 
-    def call_function_with_current_parameters(self,func_input):
-        """
-        Calls the internally stored function using the currently set parameters.
 
-        Returns:
-            Result of the function call, or None if no function was set.
-        """
-
-        if not self.function_to_execute:
-            self.get_logger().warn("No function set to execute!")
-            return None
-
-
-        return self.processor.execute(func_input)
 
 
     def parameter_callback(self,params):
@@ -409,7 +395,7 @@ class ProcessingNode(Node, BaseProcessor):
         """
 
         #  Call processing function
-        processed_data = self.call_function_with_current_parameters(self.aggregated_input_data)
+        processed_data = self.processor.execute(self.aggregated_input_data)
 
         # Reset data dict
         self.aggregated_input_data = dict.fromkeys(self.aggregated_input_data.keys(), [])
