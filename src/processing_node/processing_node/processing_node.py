@@ -9,6 +9,98 @@ from ros2topic.api import get_msg_class
 
 
 
+def check_if_config_is_valid(config: dict):
+    """
+    Method that checks if the given config has:
+    - Inputs without a 'Topic' or 'Field'
+    - Outputs without a 'Topic' or 'Field' or 'MessageType'
+    - 'MessageType' in 'Outputs' that are not featured in 'Imports'
+    - 'Imports' without a 'Package' or 'Module'
+
+    Args:
+        config (dict): The config dict to be checked
+    """
+    config_is_valid = True
+
+    error_message = ""
+
+    if "Inputs" not in config:
+        config["Inputs"] = []
+
+    for input_name in config["Inputs"]:
+        for necessary_part in ["Topic", "Field"]:
+            if necessary_part not in config["Inputs"][input_name]:
+                error_message += f"Config Format Error: Input {input_name} has no '{necessary_part}' \n"
+                config_is_valid = False
+
+    if "Imports" not in config:
+        config["Imports"] = []
+
+    for import_name in config["Imports"]:
+        for necessary_part in ["Package", "Module"]:
+            if necessary_part not in config["Imports"][import_name]:
+                error_message += f"Config Format Error: Import {import_name} has no '{necessary_part}' \n"
+                config_is_valid = False
+
+    if "Outputs" not in config:
+        config["Outputs"] = []
+
+    for output_name in config["Outputs"]:
+        for necessary_part in ["Topic", "Field"]:
+            if necessary_part not in config["Outputs"][output_name]:
+                error_message += f"Config Format Error: Output {output_name} has no '{necessary_part}' \n"
+                config_is_valid = False
+        if "MessageType" not in config["Outputs"][output_name]:
+            error_message += f"Config Format Error: Output {output_name} has no 'MessageType' \n"
+            config_is_valid = False
+        elif config["Outputs"][output_name]["MessageType"] not in config["Imports"]:
+            error_message += f"Config Format Error: Message Type {config['Outputs'][output_name]['MessageType']} requested by Output '{output_name}' not in 'Imports' \n"
+            config_is_valid = False
+
+    return config_is_valid, error_message
+        
+
+
+def map_input_and_output_names_to_topics(config: dict) -> tuple[dict, dict]:
+        """
+        Load the actual mappings of input and output names
+
+        Args:
+            config (dict): Config dict that specifies requested inputs and outputs and relevant 
+            information about those inputs and outputs
+        
+        Returns:
+            input topic (dict): Dict specifying which topics to subscribe to and what fields of 
+            those topics are carrying which input information
+
+            output topic (dict): Dict specifying which topics to publish and what fields of those 
+            topics carry what information
+        """
+
+        input_topic_dict = {}
+        output_topic_dict = {}
+
+        for key in config['Inputs']:
+            topic = config['Inputs'][key]['Topic']
+            field = config['Inputs'][key]['Field']
+            if topic not in input_topic_dict:
+                input_topic_dict[topic] = {key: field}
+            else:
+                input_topic_dict[topic][key] = field
+
+        for key in config['Outputs']:
+            topic = config['Outputs'][key]['Topic']
+            field = config['Outputs'][key]['Field']
+            if topic not in output_topic_dict:
+                output_topic_dict[topic] = {key: field}
+                output_topic_dict[topic]['MessageType'] = config['Outputs'][key]['MessageType']
+            else:
+                output_topic_dict[topic][key] = field
+
+        return input_topic_dict, output_topic_dict
+
+
+
 
 class ProcessingNode(Node):
     """
@@ -30,7 +122,7 @@ class ProcessingNode(Node):
         in construction   
     """
 
-    def __init__(self, func: callable, frequency: float=30.0):
+    def __init__(self, func: callable, config_path:str=None, frequency: float=30.0):
         """
         Initializes the ProcessingNode with a given function.
 
@@ -44,16 +136,21 @@ class ProcessingNode(Node):
         super().__init__('processing_node')
 
         # Config path is expected to be given as an argument when starting the node
-        try:
-            config_path = sys.argv[1]
-        except IndexError:
-            self.get_logger().error("Missing argument: config path")
-            rclpy.shutdown()
-            sys.exit()
+        if config_path is None:
+            try:
+                config_path = sys.argv[1]
+            except IndexError:
+                self.get_logger().error("Missing argument: config path")
+                rclpy.shutdown()
+                sys.exit()
 
         config = self.load_config(config_path)
 
-        self.check_if_config_is_valid(config)
+        config_is_valid, error_message = check_if_config_is_valid(config)
+        if not config_is_valid:
+            rclpy.logging.get_logger("processing_node").error(error_message)
+            rclpy.shutdown()
+            sys.exit()
 
         # Dict that contains all supported message types and the necessary interface
         # to construct an instance of them
@@ -78,7 +175,7 @@ class ProcessingNode(Node):
         #                       "MessageType": "GenericMessageType"}
         #                      }
         #
-        input_topic_dict, output_topic_dict = self.map_input_and_output_names_to_topics(config)
+        input_topic_dict, output_topic_dict = map_input_and_output_names_to_topics(config)
 
         self.set_up_subscriptions(input_topic_dict)
 
@@ -178,96 +275,8 @@ class ProcessingNode(Node):
 
         return config
 
-    @staticmethod
-    def check_if_config_is_valid(config: dict):
-        """
-        Method that checks if the given config has:
-        - Inputs without a 'Topic' or 'Field'
-        - Outputs without a 'Topic' or 'Field' or 'MessageType'
-        - 'MessageType' in 'Outputs' that are not featured in 'Imports'
-        - 'Imports' without a 'Package' or 'Module'
 
-        Args:
-            config (dict): The config dict to be checked
-        """
-        config_is_valid = True
-
-        error_message = ""
-
-        if "Inputs" not in config:
-            config["Inputs"] = []
-
-        for input_name in config["Inputs"]:
-            for necessary_part in ["Topic", "Field"]:
-                if necessary_part not in config["Inputs"][input_name]:
-                    error_message += f"Config Format Error: Input {input_name} has no '{necessary_part}' \n"
-                    config_is_valid = False
-
-        if "Imports" not in config:
-            config["Imports"] = []
-
-        for import_name in config["Imports"]:
-            for necessary_part in ["Package", "Module"]:
-                if necessary_part not in config["Imports"][import_name]:
-                    error_message += f"Config Format Error: Import {import_name} has no '{necessary_part}' \n"
-                    config_is_valid = False
-
-        if "Outputs" not in config:
-            config["Outputs"] = []
-
-        for output_name in config["Outputs"]:
-            for necessary_part in ["Topic", "Field"]:
-                if necessary_part not in config["Outputs"][output_name]:
-                    error_message += f"Config Format Error: Output {output_name} has no '{necessary_part}' \n"
-                    config_is_valid = False
-            if "MessageType" not in config["Outputs"][output_name]:
-                error_message += f"Config Format Error: Output {output_name} has no 'MessageType' \n"
-                config_is_valid = False
-            elif config["Outputs"][output_name]["MessageType"] not in config["Imports"]:
-                error_message += f"Config Format Error: Message Type {config['Outputs'][output_name]['MessageType']} requested by Output '{output_name}' not in 'Imports' \n"
-                config_is_valid = False
-        if not config_is_valid:
-            rclpy.logging.get_logger("processing_node").error(error_message)
-            rclpy.shutdown()
-            sys.exit()
-
-    def map_input_and_output_names_to_topics(self, config: dict) -> tuple[dict, dict]:
-        """
-        Load the actual mappings of input and output names
-
-        Args:
-            config (dict): Config dict that specifies requested inputs and outputs and relevant 
-            information about those inputs and outputs
-        
-        Returns:
-            input topic (dict): Dict specifying which topics to subscribe to and what fields of 
-            those topics are carrying which input information
-
-            output topic (dict): Dict specifying which topics to publish and what fields of those 
-            topics carry what information
-        """
-
-        input_topic_dict = {}
-        output_topic_dict = {}
-
-        for key in config['Inputs']:
-            topic = config['Inputs'][key]['Topic']
-            field = config['Inputs'][key]['Field']
-            if topic not in input_topic_dict:
-                input_topic_dict[topic] = {key: field}
-            else:
-                input_topic_dict[topic][key] = field
-
-        for key in config['Outputs']:
-            topic = config['Outputs'][key]['Topic']
-            field = config['Outputs'][key]['Field']
-            if topic not in output_topic_dict:
-                output_topic_dict[topic] = {key: field}
-                output_topic_dict[topic]['MessageType'] = config['Outputs'][key]['MessageType']
-            else:
-                output_topic_dict[topic][key] = field
-
-        return input_topic_dict, output_topic_dict
+    
 
     def import_needed_modules(self, config: dict):
         """
@@ -299,7 +308,7 @@ class ProcessingNode(Node):
 
         for topic_name in topic_dict:
             subscribed = False
-            timeout = time.time() + 60
+            timeout = time.time() + 4
             while not subscribed:
                 # Get all currently publishing topics
                 topic_list = self.get_topic_names_and_types()
@@ -317,9 +326,8 @@ class ProcessingNode(Node):
                         subscribed = True
                         self.get_logger().info(f"Subscribed to topic {topic_name} which publishes {list(topic_dict[topic_name])}")
                 if time.time() > timeout:
-                    self.get_logger().error(f"Input topic {topic_name} was not found within 60 Seconds, aborting")
-                    rclpy.shutdown()
-                    sys.exit()
+                    self.get_logger().warning(f"Input topic {topic_name} was not found within 60 Seconds, no subscription was set up")
+                    break
 
                 # Wait half a second
                 time.sleep(0.5)
@@ -449,7 +457,7 @@ def main():
     """
 
     rclpy.init()
-    node = ProcessingNode(some_function_to_test, 2)
+    node = ProcessingNode(some_function_to_test)
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
