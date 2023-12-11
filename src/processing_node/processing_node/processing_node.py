@@ -1,13 +1,22 @@
 import sys
 import importlib
 import time
+import inspect
+import os
 
 import rclpy
 import yaml
 from rclpy.node import Node
 from ros2topic.api import get_msg_class
 
-
+def is_callable_execute(obj):
+    if inspect.isclass(obj):
+        try:
+            instance = obj()
+            return callable(getattr(instance, 'execute', None))
+        except Exception:
+            return False
+    return False
 
 def check_if_config_is_valid(config: dict):
     """
@@ -100,9 +109,96 @@ def map_input_and_output_names_to_topics(config: dict) -> tuple[dict, dict]:
         return input_topic_dict, output_topic_dict
 
 
+class BaseProcessor:
+    def __init__(self,func,config_path:str):
+        
+        # check that the processor object is a class which has a callable execute and set_parameters function:
+        
+        
+        
+        # load the config file:
+        self._config = self.load_config(config_path)
+
+        # check that the config file is valid:
+        config_is_valid, error_message = check_if_config_is_valid(self._config)
+
+        if not config_is_valid:
+            raise ValueError(error_message)
+        
+        self.import_needed_modules(self._config)
+        self.aggregated_input_data = dict.fromkeys(self._config['Inputs'].keys(), [])
 
 
-class ProcessingNode(Node):
+        self.function_to_execute = func
+
+    def load_config(self, config_path: str) -> dict:
+        """
+        Loads config from path and returns it as a dict
+
+        Args:
+            config_path (String): Absolute path to the config file expected to be .yaml
+        
+        Returns:
+            config dict (dict): Contents of the config.yaml restructured into a dict
+        """
+
+        # Get dict of inputs from parameters
+        with open(config_path, 'r') as file:
+            try:
+                config = yaml.safe_load(file)
+            except yaml.YAMLError as e:
+                self.get_logger().error("Specified path does not lead to a valid yaml file")
+                if hasattr(e, 'problem_mark'):
+                    if e.context is not None:
+                        self.get_logger().warn(str(e.problem_mark) + '\n' + str(e.problem) + ' ' + str(e.context))
+                rclpy.shutdown()
+                sys.exit()
+
+        return config
+
+    def import_needed_modules(self, config: dict):
+        """
+        Imports Modules specified in config dict (needed for output message types)
+        Also adds the imported modules to the supported messsage types for output dict
+
+        Args:
+            config (dict): Config dict that specifies which modules to import from where
+        """
+        try:
+            import_dict = config['Imports']
+            for to_import in import_dict:
+                package = import_dict[to_import]["Package"]
+                module = import_dict[to_import]["Module"]
+                message_type_class = getattr(importlib.import_module(package), module)
+                self.supported_message_types_to_publish[to_import] = message_type_class
+        except:
+            self.get_logger().warn("Import of message based modules specified in config failed!")
+
+def listener_callback(self, msg, field_names: dict):
+        """
+        Function that is called whenever something is published to a subscribed topic 
+        and modifies the data dict accordingly
+
+        Args:
+            msg (ROS2 Message or other struct): Message that triggered the function call
+            field_names (dict): Dict that specifies which fields are carrying what input information
+        """
+
+        # Read the relevant message field and append it to the relevant list in the data dict
+        for input_name in field_names:
+            # Loop over attributes to reach deeper message levels until the actual data is reached
+            base = msg
+            # Check if field name is a string and the message therefore only 1 level deep
+            if isinstance(field_names[input_name], str):
+                base = getattr(base, field_names[input_name])
+            else:
+                for i in range(len(field_names[input_name])):
+                    attribute = field_names[input_name][i]
+                    base = getattr(base, attribute)
+            # Does not work with append for whatever reason
+            self.aggregated_input_data[input_name] = self.aggregated_input_data[input_name] + [base]
+
+class ProcessingNode(Node, BaseProcessor):
     """
     Ros2 node that sets up input subscribers and output publishers according
     to a config and handles the data transfer to a processing function
@@ -133,49 +229,12 @@ class ProcessingNode(Node):
         if not callable(func):
             raise ValueError("`func` must be a callable function.")
 
-        super().__init__('processing_node')
-
-        # Config path is expected to be given as an argument when starting the node
-        if config_path is None:
-            try:
-                config_path = sys.argv[1]
-            except IndexError:
-                self.get_logger().error("Missing argument: config path")
-                rclpy.shutdown()
-                sys.exit()
-
-        config = self.load_config(config_path)
-
-        config_is_valid, error_message = check_if_config_is_valid(config)
-        if not config_is_valid:
-            rclpy.logging.get_logger("processing_node").error(error_message)
-            rclpy.shutdown()
-            sys.exit()
-
-        # Dict that contains all supported message types and the necessary interface
-        # to construct an instance of them
-        self.supported_message_types_to_publish = {}
-
-        # Create data dict which carries the input data
-        self.aggregated_input_data = dict.fromkeys(config['Inputs'].keys(), [])
-
-        self.import_needed_modules(config)
-
-        # Translate the information from the config into an input and output dict
-        # they look like
-        #
-        # input_topic_dict = {"Input_Topic_1":
-        #                       {"Input_1": ["Field_1", "Input_1"],
-        #                        "Input_2": ["Field_1", "Input_2"]}
-        #                    }
-        #
-        # output_topic_dict = {"Output_Topic_1":
-        #                       {"Output_1": ["Field_1", "Output_1"],
-        #                       "Output_2": ["Field_1", "Output_2"],
-        #                       "MessageType": "GenericMessageType"}
-        #                      }
-        #
-        input_topic_dict, output_topic_dict = map_input_and_output_names_to_topics(config)
+        # init both base classes
+        Node.__init__(self, "processing_node")
+        BaseProcessor.__init__(self,func,config_path)
+        
+        input_topic_dict, output_topic_dict = map_input_and_output_names_to_topics(self._config)
+        self.import_needed_modules(self._config)
 
         self.set_up_subscriptions(input_topic_dict)
 
@@ -249,52 +308,7 @@ class ProcessingNode(Node):
 
         return self.function_to_execute(func_input,parameters=params)
 
-
-    def load_config(self, config_path: str) -> dict:
-        """
-        Loads config from path and returns it as a dict
-
-        Args:
-            config_path (String): Absolute path to the config file expected to be .yaml
-        
-        Returns:
-            config dict (dict): Contents of the config.yaml restructured into a dict
-        """
-
-        # Get dict of inputs from parameters
-        with open(config_path, 'r') as file:
-            try:
-                config = yaml.safe_load(file)
-            except yaml.YAMLError as e:
-                self.get_logger().error("Specified path does not lead to a valid yaml file")
-                if hasattr(e, 'problem_mark'):
-                    if e.context is not None:
-                        self.get_logger().warn(str(e.problem_mark) + '\n' + str(e.problem) + ' ' + str(e.context))
-                rclpy.shutdown()
-                sys.exit()
-
-        return config
-
-
     
-
-    def import_needed_modules(self, config: dict):
-        """
-        Imports Modules specified in config dict (needed for output message types)
-        Also adds the imported modules to the supported messsage types for output dict
-
-        Args:
-            config (dict): Config dict that specifies which modules to import from where
-        """
-        try:
-            import_dict = config['Imports']
-            for to_import in import_dict:
-                package = import_dict[to_import]["Package"]
-                module = import_dict[to_import]["Module"]
-                message_type_class = getattr(importlib.import_module(package), module)
-                self.supported_message_types_to_publish[to_import] = message_type_class
-        except:
-            self.get_logger().warn("Import of message based modules specified in config failed!")
 
     def set_up_subscriptions(self, topic_dict: dict):
         """
@@ -388,31 +402,7 @@ class ProcessingNode(Node):
                 setattr(current_attribute, part, new_value)
             current_attribute = new_attribute
 
-        return parent
-
-    def listener_callback(self, msg, field_names: dict):
-        """
-        Function that is called whenever something is published to a subscribed topic 
-        and modifies the data dict accordingly
-
-        Args:
-            msg (ROS2 Message): Message that triggered the function call
-            field_names (dict): Dict that specifies which fields are carrying what input information
-        """
-
-        # Read the relevant message field and append it to the relevant list in the data dict
-        for input_name in field_names:
-            # Loop over attributes to reach deeper message levels until the actual data is reached
-            base = msg
-            # Check if field name is a string and the message therefore only 1 level deep
-            if isinstance(field_names[input_name], str):
-                base = getattr(base, field_names[input_name])
-            else:
-                for i in range(len(field_names[input_name])):
-                    attribute = field_names[input_name][i]
-                    base = getattr(base, attribute)
-            # Does not work with append for whatever reason
-            self.aggregated_input_data[input_name] = self.aggregated_input_data[input_name] + [base]
+        return parent    
 
     def execute_function(self):
         """
