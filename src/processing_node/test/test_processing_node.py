@@ -1,12 +1,10 @@
 from typing import Any
 import pytest
 import yaml
-from processing_node.processing_node import ProcessingNode, check_if_config_is_valid, map_input_and_output_names_to_topics, load_config
-import rclpy
+from processing_node.ml_deploy_library import check_if_config_is_valid, map_input_and_output_names_to_topics, load_config
 import os
 import ament_index_python.packages
 
-from unittest.mock import MagicMock
 
 
 class SomeProcessor:
