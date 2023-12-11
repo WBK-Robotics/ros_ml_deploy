@@ -1,3 +1,4 @@
+from typing import Any
 import pytest
 import yaml
 from processing_node.processing_node import ProcessingNode, check_if_config_is_valid, map_input_and_output_names_to_topics
@@ -7,6 +8,18 @@ import ament_index_python.packages
 
 from unittest.mock import MagicMock
 
+
+class SomeProcessor:
+    def __init__(self):
+        self.parameters= {"float parameter": float, "int parameter": int}
+    def set_parameters(self, parameters):
+        self.parameters = parameters
+    
+    def get_parameters(self):
+        return self.parameters
+    
+    def execute(self, main_value, parameters):
+        return main_value, parameters
 
 
 valid_config = {
@@ -100,12 +113,11 @@ def test_map_input_and_output_names_to_topics():
     assert received_output_topic_dict == expected_output_topic_dict
 
 def test_call_function_with_current_parameters():
-    TestTypeDict = {"float parameter": float, "int parameter": int}
+
     
-    def some_function_to_test(main_value:int, parameters: TestTypeDict):
-        return main_value, parameters
     rclpy.init()
-    node = ProcessingNode(some_function_to_test,config_path=config_path)
+    some_processor = SomeProcessor()
+    node = ProcessingNode(some_processor ,config_path=config_path)
     node.get_parameter = MagicMock(side_effect=lambda param: MagicMock(value=param))
     test_input = 42 # Example input
 
@@ -122,7 +134,8 @@ def test_config_loading():
     with open(config_path, "w") as file:
         yaml.dump(valid_config, file)
     
-    node = ProcessingNode(lambda x: x,config_path=config_path)  # Dummy function
+    some_processor = SomeProcessor()
+    node = ProcessingNode(some_processor ,config_path=config_path)  # Dummy function
     loaded_config = node.load_config(str(config_path))
     
     assert loaded_config == valid_config

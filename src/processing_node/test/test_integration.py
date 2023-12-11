@@ -10,10 +10,23 @@ from test_processing_node import get_config_file_path
 from processing_node.processing_node import ProcessingNode
 
 
-test_parameter_dict = {'test int': int}
 
-def sample_function(main_value, parameters: test_parameter_dict):
-    return {"float parameter": main_value["Motor Current 1"][0]*5, "int parameter": parameters['test int']}
+class SampleProcessor:
+    def __init__(self):
+        self.parameters = {'test int': int}
+
+    def get_parameters(self):
+        return self.parameters
+    
+    def set_parameters(self, parameters: dict):
+        for key in parameters.keys():
+            if key in self.parameters.keys():
+                self.parameters[key] = parameters[key]
+            else:
+                raise ValueError("The parameter {} is not supported by this processor".format(key))
+    
+    def execute(self, main_value):
+        return {"float parameter": main_value["Motor Current 1"][0]*5, "int parameter": self.parameters['test int']}
 
 class TestProcessingNodeIntegration(unittest.TestCase):
     @classmethod
@@ -49,7 +62,8 @@ class TestProcessingNodeIntegration(unittest.TestCase):
         pub.publish(msg)
 
         second_executor = SingleThreadedExecutor()
-        processsing_node = ProcessingNode(sample_function, get_config_file_path('config.yaml'))
+        sample_processor = SampleProcessor()
+        processsing_node = ProcessingNode(sample_processor, get_config_file_path('config.yaml'))
         processsing_node.set_parameters([rclpy.parameter.Parameter('test int', value=8)])
         second_executor.add_node(processsing_node)
         second_executor.add_node(self.node)

@@ -7,6 +7,7 @@ import os
 import rclpy
 import yaml
 from rclpy.node import Node
+from rcl_interfaces.msg import SetParametersResult
 from ros2topic.api import get_msg_class
 
 
@@ -277,12 +278,7 @@ class ProcessingNode(Node, BaseProcessor):
 
             self.declare_parameter(param_name, default_values[param_type])
 
-            # create a callback function for the parameters 
-            # which sets the parameter value using set_parameter function of the processor
-            def callback(self,param):
-                param_dict = {param_name: param.get_parameter_value().get_parameter_value()}
-                self.processor.set_parameter(param_dict)
-            self.get_parameter(param_name).add_callback(callback)
+        self.add_on_set_parameters_callback(self.parameter_callback)
 
     def call_function_with_current_parameters(self,func_input):
         """
@@ -292,14 +288,23 @@ class ProcessingNode(Node, BaseProcessor):
             Result of the function call, or None if no function was set.
         """
 
-        annotations = self.function_to_execute.__annotations__
-
         if not self.function_to_execute:
             self.get_logger().warn("No function set to execute!")
             return None
 
 
         return self.processor.execute(func_input)
+
+
+    def parameter_callback(self,params):
+        param_dict = {}
+        for individual_param in params:
+            param_dict[individual_param.name] = individual_param.value
+
+        self.processor.set_parameters(param_dict)        
+        return SetParametersResult(successful=True)
+
+   
 
     
 
