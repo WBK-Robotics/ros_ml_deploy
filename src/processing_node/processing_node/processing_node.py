@@ -9,14 +9,6 @@ import yaml
 from rclpy.node import Node
 from ros2topic.api import get_msg_class
 
-def is_callable_execute(obj):
-    if inspect.isclass(obj):
-        try:
-            instance = obj()
-            return callable(getattr(instance, 'execute', None))
-        except Exception:
-            return False
-    return False
 
 def check_if_config_is_valid(config: dict):
     """
@@ -67,8 +59,6 @@ def check_if_config_is_valid(config: dict):
             config_is_valid = False
 
     return config_is_valid, error_message
-        
-
 
 def map_input_and_output_names_to_topics(config: dict) -> tuple[dict, dict]:
         """
@@ -108,11 +98,25 @@ def map_input_and_output_names_to_topics(config: dict) -> tuple[dict, dict]:
 
         return input_topic_dict, output_topic_dict
 
-
 class BaseProcessor:
-    def __init__(self,func,config_path:str):
+    def __init__(self,processor,config_path:str):
         
-        # check that the processor object is a class which has a callable execute and set_parameters function:
+        has_execute = callable(getattr(processor, 'execute', None))
+        if not has_execute:
+            raise ValueError("The processor object must be a class which has a callable execute function.")
+        has_set_parameters = callable(getattr(processor, 'set_parameters', None))
+        if not has_set_parameters:
+            raise ValueError("The processor object must be a class which has a callable set_parameters function.")
+        has_get_parameters = callable(getattr(processor, 'get_parameters', None))
+        if not has_get_parameters:
+            raise ValueError("The processor object must be a class which has a callable get_parameters function.")
+
+        
+        # check that the config_path is a string and that the file exists:
+        if not isinstance(config_path,str):
+            raise ValueError("The config_path must be a string.")
+        if not os.path.isfile(config_path):
+            raise ValueError("The config_path must be a valid file path.")
         
         
         self.supported_message_types_to_publish={}
@@ -130,7 +134,7 @@ class BaseProcessor:
         self.aggregated_input_data = dict.fromkeys(self._config['Inputs'].keys(), [])
 
 
-        self.function_to_execute = func
+        self.processor = processor
 
     def load_config(self, config_path: str) -> dict:
         """
@@ -227,8 +231,6 @@ class ProcessingNode(Node, BaseProcessor):
             func (function): Function with type annotations to set as parameters.
             frequency (float): Frequency at which the function should be called.
         """
-        if not callable(func):
-            raise ValueError("`func` must be a callable function.")
 
         # init both base classes
         Node.__init__(self, "processing_node")
@@ -249,17 +251,15 @@ class ProcessingNode(Node, BaseProcessor):
         # Create timer that calls the processing function
         self.timer = self.create_timer(timer_period, self.execute_function)
 
-    def _declare_parameters_for_function(self, func: callable):
+    def _declare_parameters_for_function(self, processor):
         """
         Declares ROS2 parameters for this node based on a given function's type annotations.
 
         Args:
             func (function): Function with type annotations to set as parameters.
         """
-        if "parameters" not in func.__annotations__:
-            return
 
-        parameters = func.__annotations__["parameters"]
+        parameters = processor.get_parameters()
         rclpy.logging.get_logger("processing_node").info(f"Parameters: {parameters}")
         for param_name, param_type  in parameters.items():
             if self.has_parameter(param_name):
@@ -277,6 +277,13 @@ class ProcessingNode(Node, BaseProcessor):
 
             self.declare_parameter(param_name, default_values[param_type])
 
+            # create a callback function for the parameters 
+            # which sets the parameter value using set_parameter function of the processor
+            def callback(self,param):
+                param_dict = {param_name: param.get_parameter_value().get_parameter_value()}
+                self.processor.set_parameter(param_dict)
+            self.get_parameter(param_name).add_callback(callback)
+
     def call_function_with_current_parameters(self,func_input):
         """
         Calls the internally stored function using the currently set parameters.
@@ -291,22 +298,8 @@ class ProcessingNode(Node, BaseProcessor):
             self.get_logger().warn("No function set to execute!")
             return None
 
-        undeclared_params = [param for param in annotations.get("parameters", [])
-                             if not self.has_parameter(param)]
-        if undeclared_params:
-            params_list = ', '.join(undeclared_params)
-            self.get_logger().error(f"Parameters not declared: {params_list}")
-            return None
 
-        if "parameters" not in annotations:
-            self.get_logger().warn("No parameters declared for function.")
-            return self.function_to_execute(func_input)
-
-        params = {}
-        for param_name in annotations["parameters"]:
-            params[param_name] = self.get_parameter(param_name).value
-
-        return self.function_to_execute(func_input,parameters=params)
+        return self.processor.execute(func_input)
 
     
 
@@ -434,23 +427,3 @@ class ProcessingNode(Node, BaseProcessor):
                     except:
                         self.get_logger().warn(f'Output {output} not found in model output or wrong data type')
 
-TestTypeDict = {"float parameter": float, "int parameter": int}
-
-def some_function_to_test(main_value:int, parameters: TestTypeDict):
-    return parameters
-
-
-def main():
-    """
-    Main function to be used as an entry point. Calls the constructor, starts the processing, and calls
-    the destructor
-    """
-
-    rclpy.init()
-    node = ProcessingNode(some_function_to_test)
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
-
-if __name__ == '__main__':
-    main()
