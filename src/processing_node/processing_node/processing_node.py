@@ -215,7 +215,7 @@ class ProcessingNode(Node):
         processed_data = self.processor.execute(self.aggregated_input_data)
 
         # Reset data dict
-        self.aggregated_input_data = dict.fromkeys(self.aggregated_input_data.keys(), [])
+        # self.aggregated_input_data = dict.fromkeys(self.aggregated_input_data.keys(), [])
 
         # Publish output
         if processed_data is not None:
