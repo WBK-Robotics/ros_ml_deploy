@@ -1,6 +1,5 @@
 import time
 
-
 import rclpy
 from rclpy.node import Node
 from rcl_interfaces.msg import SetParametersResult
@@ -49,9 +48,9 @@ class ProcessingNode(Node):
             raise ValueError(error_message)
 
         self.supported_message_types_to_publish= import_needed_modules(self._config)
-        
+
         self.aggregated_input_data = dict.fromkeys(self._config['Inputs'].keys(), [])
-        
+
         input_topic_dict, output_topic_dict = map_input_and_output_names_to_topics(self._config)
 
         self.set_up_subscriptions(input_topic_dict)
@@ -134,7 +133,7 @@ class ProcessingNode(Node):
         for individual_param in params:
             param_dict[individual_param.name] = individual_param.value
 
-        self.processor.set_parameters(param_dict)        
+        self.processor.set_parameters(param_dict)
         return SetParametersResult(successful=True)
 
     def set_up_subscriptions(self, topic_dict: dict):
@@ -155,7 +154,7 @@ class ProcessingNode(Node):
                 topic_list = self.get_topic_names_and_types()
                 # Check if topic we want is in currently publishing topics
                 for topic_tuple in topic_list:
-                    if topic_name in topic_tuple[0]:
+                    if topic_tuple[0] == f'/{topic_name}':
                         # Get msg type
                         msg_type = get_msg_class(self, topic_tuple[0], include_hidden_topics=True)
                         # Set up subscription
@@ -167,7 +166,7 @@ class ProcessingNode(Node):
                         subscribed = True
                         self.get_logger().info(f"Subscribed to topic {topic_name} which publishes {list(topic_dict[topic_name])}")
                 if time.time() > timeout:
-                    self.get_logger().warning(f"Input topic {topic_name} was not found within 60 Seconds, no subscription was set up")
+                    self.get_logger().warning(f"Input topic {topic_name} was not found within 4 Seconds, no subscription was set up")
                     break
 
                 # Wait half a second
@@ -204,12 +203,15 @@ class ProcessingNode(Node):
                         topics_to_publish_dict[topic_name]['Fields'][key] = topic_dict[topic_name][key]
 
         return topics_to_publish_dict
-  
+
     def execute_processor(self):
         """
         Function that is called on a timer, sends collected input data to the 
         processing function and publishes the resulting output
         """
+
+        if len(self.aggregated_input_data) == 0:
+            return
 
         #  Call processing function
         processed_data = self.processor.execute(self.aggregated_input_data)
@@ -231,7 +233,9 @@ class ProcessingNode(Node):
                     try:
                         data = processed_data[output]
                         output_msg = set_nested_attribute(output_msg, field, data)
-                        self.publisher_dict[topic]['Publisher'].publish(output_msg)
                     except:
                         self.get_logger().warn(f'Output {output} not found in model output or wrong data type')
-
+                try:
+                    self.publisher_dict[topic]['Publisher'].publish(output_msg)
+                except:
+                    self.get_logger().warn(f'Problem publishing topic {topic}, wrong data type?')
