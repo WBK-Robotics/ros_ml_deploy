@@ -40,6 +40,12 @@ valid_config = {
             "Topic": "ExampleInt",
             "Field": ["data"],
             "MessageType": "Int16"
+        },
+        "string parameter":{
+            "Description": "Example string parameter",
+            "Topic": "ExampleString",
+            "Field": ["data"],
+            "MessageType": "String"
         }
     },
     "Imports": {
@@ -50,6 +56,10 @@ valid_config = {
         "Int16": {
             "Package": "std_msgs.msg",
             "Module": "Int16"
+        },
+        "String":{
+            "Package": "std_msgs.msg",
+            "Module": "String"
         }
     }
 }
@@ -103,6 +113,10 @@ def test_map_input_and_output_names_to_topics():
         "ExampleInt": {
             "int parameter": ["data"],
             "MessageType": "Int16"
+        },
+        "ExampleString":{
+            "string parameter": ["data"],
+            "MessageType": "String"
         }
     }
     received_input_topic_dict, received_output_topic_dict = map_input_and_output_names_to_topics(valid_config)
