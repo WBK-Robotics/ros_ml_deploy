@@ -3,6 +3,7 @@ Inputs:
     Description: "Example input parameter, for instance emulating a motor current"
     Topic: "sensor_data"
     Field: ["data"]
+    MessageType: "Float32"
 Outputs:
   float parameter: 
     Description: "Example float parameter"
@@ -15,7 +16,7 @@ Outputs:
     Field: ["data"]
     MessageType: "Int16"
   string parameter:
-    Description: "Example str parameter"
+    Description: "Example string parameter"
     Topic: "ExampleString"
     Field: ["data"]
     MessageType: "String"

@@ -1,9 +1,6 @@
-import time
-
 import rclpy
 from rclpy.node import Node
 from rcl_interfaces.msg import SetParametersResult
-from ros2topic.api import get_msg_class
 
 from processing_node.ml_deploy_library import *
 
@@ -47,7 +44,7 @@ class ProcessingNode(Node):
         if not config_is_valid:
             raise ValueError(error_message)
 
-        self.supported_message_types_to_publish= import_needed_modules(self._config)
+        self.supported_message_types = import_needed_modules(self._config)
 
         self.aggregated_input_data = dict.fromkeys(self._config['Inputs'].keys(), [])
 
@@ -77,17 +74,18 @@ class ProcessingNode(Node):
 
         # Read the relevant message field and append it to the relevant list in the data dict
         for input_name in field_names:
-            # Loop over attributes to reach deeper message levels until the actual data is reached
-            base = msg
-            # Check if field name is a string and the message therefore only 1 level deep
-            if isinstance(field_names[input_name], str):
-                base = getattr(base, field_names[input_name])
-            else:
-                for i in range(len(field_names[input_name])):
-                    attribute = field_names[input_name][i]
-                    base = getattr(base, attribute)
-            # Does not work with append for whatever reason
-            self.aggregated_input_data[input_name] = self.aggregated_input_data[input_name] + [base]
+            if input_name != 'MessageType':
+                # Loop over attributes to reach deeper message levels until the actual data is reached
+                base = msg
+                # Check if field name is a string and the message therefore only 1 level deep
+                if isinstance(field_names[input_name], str):
+                    base = getattr(base, field_names[input_name])
+                else:
+                    for i in range(len(field_names[input_name])):
+                        attribute = field_names[input_name][i]
+                        base = getattr(base, attribute)
+                # Does not work with append for whatever reason
+                self.aggregated_input_data[input_name] = self.aggregated_input_data[input_name] + [base]
 
     def _declare_parameters_for_processor(self, processor):
         """
@@ -147,30 +145,11 @@ class ProcessingNode(Node):
         """
 
         for topic_name in topic_dict:
-            subscribed = False
-            timeout = time.time() + 4
-            while not subscribed:
-                # Get all currently publishing topics
-                topic_list = self.get_topic_names_and_types()
-                # Check if topic we want is in currently publishing topics
-                for topic_tuple in topic_list:
-                    if topic_tuple[0] == f'/{topic_name}':
-                        # Get msg type
-                        msg_type = get_msg_class(self, topic_tuple[0], include_hidden_topics=True)
-                        # Set up subscription
-                        self.create_subscription(msg_type,
-                                                topic_tuple[0],
-                                                lambda msg, field_names=topic_dict[topic_name] : self.listener_callback(msg, field_names),
-                                                10)
-                        # Toggle bool
-                        subscribed = True
-                        self.get_logger().info(f"Subscribed to topic {topic_name} which publishes {list(topic_dict[topic_name])}")
-                if time.time() > timeout:
-                    self.get_logger().warning(f"Input topic {topic_name} was not found within 4 Seconds, no subscription was set up")
-                    break
-
-                # Wait half a second
-                time.sleep(0.5)
+            msg_type = self.supported_message_types[topic_dict[topic_name]['MessageType']]
+            self.create_subscription(msg_type,
+                topic_name,
+                lambda msg, field_names=topic_dict[topic_name] : self.listener_callback(msg, field_names),
+                10)
 
     def set_up_publishers(self, topic_dict: dict) -> dict:
         """
@@ -188,10 +167,10 @@ class ProcessingNode(Node):
 
         for topic_name in topic_dict:
             message_type_string = topic_dict[topic_name]['MessageType']
-            if message_type_string not in self.supported_message_types_to_publish:
+            if message_type_string not in self.supported_message_types:
                 self.get_logger().warn(f'Topic name {topic_name} cannot be published, Message Type is unknown')
             else:
-                topics_to_publish_dict[topic_name] = {'Publisher': self.create_publisher(self.supported_message_types_to_publish[message_type_string],
+                topics_to_publish_dict[topic_name] = {'Publisher': self.create_publisher(self.supported_message_types[message_type_string],
                                                                                         topic_name,
                                                                                         10)}
 
@@ -223,7 +202,7 @@ class ProcessingNode(Node):
         if processed_data is not None:
             for topic in self.publisher_dict:
                 message_type_string = self.publisher_dict[topic]['MessageType']
-                message_type = self.supported_message_types_to_publish[message_type_string]
+                message_type = self.supported_message_types[message_type_string]
                 output_msg = message_type()
                 for output in self.publisher_dict[topic]['Fields']:
                     field = self.publisher_dict[topic]['Fields'][output]
