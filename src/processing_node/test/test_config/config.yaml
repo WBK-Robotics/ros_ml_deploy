@@ -16,7 +16,7 @@ Outputs:
     Field: ["data"]
     MessageType: "Int16"
   string parameter:
-    Description: "Example str parameter"
+    Description: "Example string parameter"
     Topic: "ExampleString"
     Field: ["data"]
     MessageType: "String"

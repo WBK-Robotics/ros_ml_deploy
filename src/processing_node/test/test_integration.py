@@ -82,7 +82,6 @@ class TestProcessingNodeIntegration(unittest.TestCase):
         msg = Float32()
 
         msg.data = 20.0
-        # Test that multiple parameters on same topic work and dont result in sending multiple messages
         pub.publish(msg)
         pub_fake.publish(msg)
 

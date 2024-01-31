@@ -3,10 +3,12 @@ Inputs:
     Description: "Example input parameter, for instance emulating a motor current"
     Topic: "sensor_data"
     Field: ["data"]
+    MessageType: "Float32"
   Fake Parameter:
     Description: "Fake parameter that is used to test subscriber setup"
     Topic: "second_data"
     Field: ["data"]
+    MessageType: "Float32"
 Outputs:
   float parameter: 
     Description: "Example float parameter"

@@ -104,6 +104,7 @@ def map_input_and_output_names_to_topics(config: dict) -> tuple[dict, dict]:
             field = config['Inputs'][key]['Field']
             if topic not in input_topic_dict:
                 input_topic_dict[topic] = {key: field}
+                input_topic_dict[topic]['MessageType'] = config['Inputs'][key]['MessageType']
             else:
                 input_topic_dict[topic][key] = field
 

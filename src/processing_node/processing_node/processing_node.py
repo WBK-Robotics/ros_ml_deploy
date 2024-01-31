@@ -47,7 +47,7 @@ class ProcessingNode(Node):
         if not config_is_valid:
             raise ValueError(error_message)
 
-        self.supported_message_types_to_publish= import_needed_modules(self._config)
+        self.supported_message_types = import_needed_modules(self._config)
 
         self.aggregated_input_data = dict.fromkeys(self._config['Inputs'].keys(), [])
 
@@ -77,17 +77,18 @@ class ProcessingNode(Node):
 
         # Read the relevant message field and append it to the relevant list in the data dict
         for input_name in field_names:
-            # Loop over attributes to reach deeper message levels until the actual data is reached
-            base = msg
-            # Check if field name is a string and the message therefore only 1 level deep
-            if isinstance(field_names[input_name], str):
-                base = getattr(base, field_names[input_name])
-            else:
-                for i in range(len(field_names[input_name])):
-                    attribute = field_names[input_name][i]
-                    base = getattr(base, attribute)
-            # Does not work with append for whatever reason
-            self.aggregated_input_data[input_name] = self.aggregated_input_data[input_name] + [base]
+            if input_name != 'MessageType':
+                # Loop over attributes to reach deeper message levels until the actual data is reached
+                base = msg
+                # Check if field name is a string and the message therefore only 1 level deep
+                if isinstance(field_names[input_name], str):
+                    base = getattr(base, field_names[input_name])
+                else:
+                    for i in range(len(field_names[input_name])):
+                        attribute = field_names[input_name][i]
+                        base = getattr(base, attribute)
+                # Does not work with append for whatever reason
+                self.aggregated_input_data[input_name] = self.aggregated_input_data[input_name] + [base]
 
     def _declare_parameters_for_processor(self, processor):
         """
