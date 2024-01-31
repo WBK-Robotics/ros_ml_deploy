@@ -3,7 +3,10 @@ Inputs:
     Description: "Example input parameter, for instance emulating a motor current"
     Topic: "sensor_data"
     Field: ["data"]
-    MessageType: "Float32"
+  Fake Parameter:
+    Description: "Fake parameter that is used to test subscriber setup"
+    Topic: "second_data"
+    Field: ["data"]
 Outputs:
   float parameter: 
     Description: "Example float parameter"
@@ -20,6 +23,16 @@ Outputs:
     Topic: "ExampleString"
     Field: ["data"]
     MessageType: "String"
+  vector parameter x:
+    Description: "Vector to test multiple variables on the same message"
+    Topic: "ExampleVector"
+    Field: ["x"]
+    MessageType: "Vector3"
+  vector parameter y:
+    Description: "Vector to test multiple variables on the same message"
+    Topic: "ExampleVector"
+    Field: ["y"]
+    MessageType: "Vector3"
 Imports:
   Float32:
     Package: "std_msgs.msg"
@@ -30,4 +43,7 @@ Imports:
   String:
     Package: "std_msgs.msg"
     Module: "String"
+  Vector3:
+    Package: "geometry_msgs.msg"
+    Module: "Vector3"
       

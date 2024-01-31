@@ -1,109 +1,11 @@
-import sys
-import importlib
+import time
 
 import rclpy
-import yaml
 from rclpy.node import Node
+from rcl_interfaces.msg import SetParametersResult
+from ros2topic.api import get_msg_class
 
-
-
-def check_if_config_is_valid(config: dict):
-    """
-    Method that checks if the given config has:
-    - Inputs without a 'Topic' or 'Field' or 'MessageType'
-    - Outputs without a 'Topic' or 'Field' or 'MessageType'
-    - 'MessageType' in 'Outputs' or 'Inputs' that are not featured in 'Imports'
-    - 'Imports' without a 'Package' or 'Module'
-
-    Args:
-        config (dict): The config dict to be checked
-    """
-    config_is_valid = True
-
-    error_message = ""
-
-    if "Inputs" not in config:
-        config["Inputs"] = []
-
-    for input_name in config["Inputs"]:
-        for necessary_part in ["Topic", "Field"]:
-            if necessary_part not in config["Inputs"][input_name]:
-                error_message += f"Config Format Error: Input {input_name} has no '{necessary_part}' \n"
-                config_is_valid = False
-        if "MessageType" not in config["Inputs"][input_name]:
-            error_message += f"Config Format Error: Input {input_name} has no 'MessageType' \n"
-            config_is_valid = False
-        elif config["Inputs"][input_name]["MessageType"] not in config["Imports"]:
-            error_message += f"Config Format Error: Message Type {config['Inputs'][input_name]['MessageType']} requested by Input '{input_name}' not in 'Imports' \n"
-            config_is_valid = False
-
-    if "Imports" not in config:
-        config["Imports"] = []
-
-    for import_name in config["Imports"]:
-        for necessary_part in ["Package", "Module"]:
-            if necessary_part not in config["Imports"][import_name]:
-                error_message += f"Config Format Error: Import {import_name} has no '{necessary_part}' \n"
-                config_is_valid = False
-
-    if "Outputs" not in config:
-        config["Outputs"] = []
-
-    for output_name in config["Outputs"]:
-        for necessary_part in ["Topic", "Field"]:
-            if necessary_part not in config["Outputs"][output_name]:
-                error_message += f"Config Format Error: Output {output_name} has no '{necessary_part}' \n"
-                config_is_valid = False
-        if "MessageType" not in config["Outputs"][output_name]:
-            error_message += f"Config Format Error: Output {output_name} has no 'MessageType' \n"
-            config_is_valid = False
-        elif config["Outputs"][output_name]["MessageType"] not in config["Imports"]:
-            error_message += f"Config Format Error: Message Type {config['Outputs'][output_name]['MessageType']} requested by Output '{output_name}' not in 'Imports' \n"
-            config_is_valid = False
-
-    return config_is_valid, error_message
-
-
-def map_input_and_output_names_to_topics(config: dict) -> tuple[dict, dict]:
-    """
-    Load the actual mappings of input and output names
-
-    Args:
-        config (dict): Config dict that specifies requested inputs and outputs and relevant 
-        information about those inputs and outputs
-    
-    Returns:
-        input topic (dict): Dict specifying which topics to subscribe to and what fields of 
-        those topics are carrying which input information
-
-        output topic (dict): Dict specifying which topics to publish and what fields of those 
-        topics carry what information
-    """
-
-    input_topic_dict = {}
-    output_topic_dict = {}
-
-    for key in config['Inputs']:
-        topic = config['Inputs'][key]['Topic']
-        field = config['Inputs'][key]['Field']
-        if topic not in input_topic_dict:
-            input_topic_dict[topic] = {key: field}
-            input_topic_dict[topic]['MessageType'] = config['Inputs'][key]['MessageType']
-        else:
-            input_topic_dict[topic][key] = field
-
-    for key in config['Outputs']:
-        topic = config['Outputs'][key]['Topic']
-        field = config['Outputs'][key]['Field']
-        if topic not in output_topic_dict:
-            output_topic_dict[topic] = {key: field}
-            output_topic_dict[topic]['MessageType'] = config['Outputs'][key]['MessageType']
-        else:
-            output_topic_dict[topic][key] = field
-
-    return input_topic_dict, output_topic_dict
-
-
+from processing_node.ml_deploy_library import *
 
 
 class ProcessingNode(Node):
@@ -126,86 +28,76 @@ class ProcessingNode(Node):
         in construction   
     """
 
-    def __init__(self, func: callable, config_path:str=None, frequency: float=30.0):
+    def __init__(self, processor: object, config_path:str=None, frequency: float=30.0):
         """
         Initializes the ProcessingNode with a given function.
 
         Args:
-            func (function): Function with type annotations to set as parameters.
+            processor (object): Object that contains the function to be executed.
             frequency (float): Frequency at which the function should be called.
         """
-        if not callable(func):
-            raise ValueError("`func` must be a callable function.")
 
-        super().__init__('processing_node')
+        # init both base classes
+        Node.__init__(self, "processing_node")
+        check_processor(processor)
 
-        # Config path is expected to be given as an argument when starting the node
-        if config_path is None:
-            try:
-                config_path = sys.argv[1]
-            except IndexError:
-                self.get_logger().error("Missing argument: config path")
-                rclpy.shutdown()
-                sys.exit()
-
-        config = self.load_config(config_path)
-
-        config_is_valid, error_message = check_if_config_is_valid(config)
+        self._config = load_config(config_path)
+        # check that the config file is valid:
+        config_is_valid, error_message = check_if_config_is_valid(self._config)
         if not config_is_valid:
-            rclpy.logging.get_logger("processing_node").error(error_message)
-            rclpy.shutdown()
-            sys.exit()
+            raise ValueError(error_message)
 
-        # Dict that contains all supported message types and the necessary interface
-        # to construct an instance of them
-        self.supported_message_types = {}
+        self.supported_message_types_to_publish= import_needed_modules(self._config)
 
-        # Create data dict which carries the input data
-        self.aggregated_input_data = dict.fromkeys(config['Inputs'].keys(), [])
+        self.aggregated_input_data = dict.fromkeys(self._config['Inputs'].keys(), [])
 
-        self.import_needed_modules(config)
-
-        # Translate the information from the config into an input and output dict
-        # they look like
-        #
-        # input_topic_dict = {"Input_Topic_1":
-        #                       {"Input_1": ["Field_1", "Input_1"],
-        #                        "Input_2": ["Field_1", "Input_2"],
-        #                        "MessageType": "GenericMessageType"}
-        #                    }
-        #
-        # output_topic_dict = {"Output_Topic_1":
-        #                       {"Output_1": ["Field_1", "Output_1"],
-        #                       "Output_2": ["Field_1", "Output_2"],
-        #                       "MessageType": "GenericMessageType"}
-        #                      }
-        #
-        input_topic_dict, output_topic_dict = map_input_and_output_names_to_topics(config)
+        input_topic_dict, output_topic_dict = map_input_and_output_names_to_topics(self._config)
 
         self.set_up_subscriptions(input_topic_dict)
-
         self.publisher_dict = self.set_up_publishers(output_topic_dict)
 
-        self.function_to_execute = func
-        self._declare_parameters_for_function(func)
+        self.processor = processor
+        self._declare_parameters_for_processor(processor)
 
         # Set model timer period
         timer_period = 1.0 / frequency
 
         # Create timer that calls the processing function
-        self.timer = self.create_timer(timer_period, self.execute_function)
+        self.timer = self.create_timer(timer_period, self.execute_processor)
 
-    def _declare_parameters_for_function(self, func: callable):
+    def listener_callback(self, msg, field_names: dict):
+        """
+        Function that is called whenever something is published to a subscribed topic 
+        and modifies the data dict accordingly
+
+        Args:
+            msg (ROS2 Message or other struct): Message that triggered the function call
+            field_names (dict): Dict that specifies which fields are carrying what input information
+        """
+
+        # Read the relevant message field and append it to the relevant list in the data dict
+        for input_name in field_names:
+            # Loop over attributes to reach deeper message levels until the actual data is reached
+            base = msg
+            # Check if field name is a string and the message therefore only 1 level deep
+            if isinstance(field_names[input_name], str):
+                base = getattr(base, field_names[input_name])
+            else:
+                for i in range(len(field_names[input_name])):
+                    attribute = field_names[input_name][i]
+                    base = getattr(base, attribute)
+            # Does not work with append for whatever reason
+            self.aggregated_input_data[input_name] = self.aggregated_input_data[input_name] + [base]
+
+    def _declare_parameters_for_processor(self, processor):
         """
         Declares ROS2 parameters for this node based on a given function's type annotations.
 
         Args:
-            func (function): Function with type annotations to set as parameters.
+            processor (object): Object that contains the function to be executed.
         """
-        if "parameters" not in func.__annotations__:
-            return
 
-        parameters = func.__annotations__["parameters"]
+        parameters = processor.get_parameters()
         rclpy.logging.get_logger("processing_node").info(f"Parameters: {parameters}")
         for param_name, param_type  in parameters.items():
             if self.has_parameter(param_name):
@@ -223,81 +115,26 @@ class ProcessingNode(Node):
 
             self.declare_parameter(param_name, default_values[param_type])
 
-    def call_function_with_current_parameters(self,func_input):
+        self.add_on_set_parameters_callback(self.parameter_callback)
+
+    def parameter_callback(self,params):
         """
-        Calls the internally stored function using the currently set parameters.
-
-        Returns:
-            Result of the function call, or None if no function was set.
-        """
-
-        annotations = self.function_to_execute.__annotations__
-
-        if not self.function_to_execute:
-            self.get_logger().warn("No function set to execute!")
-            return None
-
-        undeclared_params = [param for param in annotations.get("parameters", [])
-                             if not self.has_parameter(param)]
-        if undeclared_params:
-            params_list = ', '.join(undeclared_params)
-            self.get_logger().error(f"Parameters not declared: {params_list}")
-            return None
-
-        if "parameters" not in annotations:
-            self.get_logger().warn("No parameters declared for function.")
-            return self.function_to_execute(func_input)
-
-        params = {}
-        for param_name in annotations["parameters"]:
-            params[param_name] = self.get_parameter(param_name).value
-
-        return self.function_to_execute(func_input,parameters=params)
-
-
-    def load_config(self, config_path: str) -> dict:
-        """
-        Loads config from path and returns it as a dict
-
-        Args:
-            config_path (String): Absolute path to the config file expected to be .yaml
+        Callback function that is called whenever a parameter is set
         
-        Returns:
-            config dict (dict): Contents of the config.yaml restructured into a dict
-        """
-
-        # Get dict of inputs from parameters
-        with open(config_path, 'r') as file:
-            try:
-                config = yaml.safe_load(file)
-            except yaml.YAMLError as e:
-                self.get_logger().error("Specified path does not lead to a valid yaml file")
-                if hasattr(e, 'problem_mark'):
-                    if e.context is not None:
-                        self.get_logger().warn(str(e.problem_mark) + '\n' + str(e.problem) + ' ' + str(e.context))
-                rclpy.shutdown()
-                sys.exit()
-
-        return config
-
-
-    def import_needed_modules(self, config: dict):
-        """
-        Imports Modules specified in config dict (needed for output message types)
-        Also adds the imported modules to the supported messsage types for output dict
-
         Args:
-            config (dict): Config dict that specifies which modules to import from where
+            params (list): list of parameters that were set
+            
+        Returns:
+            SetParametersResult: ROS2 result object that indicates 
+                                 whether the parameter setting was successful
+            
         """
-        try:
-            import_dict = config['Imports']
-            for to_import in import_dict:
-                package = import_dict[to_import]["Package"]
-                module = import_dict[to_import]["Module"]
-                message_type_class = getattr(importlib.import_module(package), module)
-                self.supported_message_types[to_import] = message_type_class
-        except:
-            self.get_logger().warn("Import of message based modules specified in config failed!")
+        param_dict = {}
+        for individual_param in params:
+            param_dict[individual_param.name] = individual_param.value
+
+        self.processor.set_parameters(param_dict)
+        return SetParametersResult(successful=True)
 
     def set_up_subscriptions(self, topic_dict: dict):
         """
@@ -348,68 +185,20 @@ class ProcessingNode(Node):
 
         return topics_to_publish_dict
 
-    @staticmethod
-    def set_nested_attribute(parent: object, part_list: list, new_value:object):
-        """
-        Helper function that sets an attribute within a nested object structure
-
-        Args:
-            parent (object): object for which an attribute is to be set
-            
-            part_list (list): path to the requested attribute in the form of ["nested_1", 
-            "nested_2", "attribute"] without restrictions on length
-
-            new_value (Attribute data type): the value the attribute is to be set to
-        
-        Returns:
-            parent (object): object with the now set attribute
-        """
-        final_attribute_index = len(part_list)-1
-        current_attribute = parent
-        for i, part in enumerate(part_list):
-            new_attribute = getattr(current_attribute, part)
-            if i == final_attribute_index:
-                setattr(current_attribute, part, new_value)
-            current_attribute = new_attribute
-
-        return parent
-
-    def listener_callback(self, msg, field_names: dict):
-        """
-        Function that is called whenever something is published to a subscribed topic 
-        and modifies the data dict accordingly
-
-        Args:
-            msg (ROS2 Message): Message that triggered the function call
-            field_names (dict): Dict that specifies which fields are carrying what input information
-        """
-
-        # Read the relevant message field and append it to the relevant list in the data dict
-        for input_name in field_names:
-            if input_name != 'MessageType':
-                # Loop over attributes to reach deeper message levels until the actual data is reached
-                base = msg
-                # Check if field name is a string and the message therefore only 1 level deep
-                if isinstance(field_names[input_name], str):
-                    base = getattr(base, field_names[input_name])
-                else:
-                    for i in range(len(field_names[input_name])):
-                        attribute = field_names[input_name][i]
-                        base = getattr(base, attribute)
-                # Does not work with append for whatever reason
-                self.aggregated_input_data[input_name] = self.aggregated_input_data[input_name] + [base]
-
-    def execute_function(self):
+    def execute_processor(self):
         """
         Function that is called on a timer, sends collected input data to the 
         processing function and publishes the resulting output
         """
 
+        if len(self.aggregated_input_data) == 0:
+            return
+
         #  Call processing function
-        processed_data = self.call_function_with_current_parameters(self.aggregated_input_data)
+        processed_data = self.processor.execute(self.aggregated_input_data)
 
         # Reset data dict
-        self.aggregated_input_data = dict.fromkeys(self.aggregated_input_data.keys(), [])
+        # self.aggregated_input_data = dict.fromkeys(self.aggregated_input_data.keys(), [])
 
         # Publish output
         if processed_data is not None:
@@ -424,28 +213,10 @@ class ProcessingNode(Node):
                         field = [field]
                     try:
                         data = processed_data[output]
-                        output_msg = self.set_nested_attribute(output_msg, field, data)
-                        self.publisher_dict[topic]['Publisher'].publish(output_msg)
+                        output_msg = set_nested_attribute(output_msg, field, data)
                     except:
                         self.get_logger().warn(f'Output {output} not found in model output or wrong data type')
-
-TestTypeDict = {"float parameter": float, "int parameter": int}
-
-def some_function_to_test(main_value:int, parameters: TestTypeDict):
-    return parameters
-
-
-def main():
-    """
-    Main function to be used as an entry point. Calls the constructor, starts the processing, and calls
-    the destructor
-    """
-
-    rclpy.init()
-    node = ProcessingNode(some_function_to_test)
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
-
-if __name__ == '__main__':
-    main()
+                try:
+                    self.publisher_dict[topic]['Publisher'].publish(output_msg)
+                except:
+                    self.get_logger().warn(f'Problem publishing topic {topic}, wrong data type?')

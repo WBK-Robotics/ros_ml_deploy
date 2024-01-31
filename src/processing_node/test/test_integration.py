@@ -5,15 +5,36 @@ import rclpy
 from rclpy.executors import SingleThreadedExecutor
 from std_msgs.msg import Float32
 from std_msgs.msg import Int16
+from std_msgs.msg import String
+
+from geometry_msgs.msg import Vector3
 
 from test_processing_node import get_config_file_path
 from processing_node.processing_node import ProcessingNode
 
 
-test_parameter_dict = {'test int': int}
 
-def sample_function(main_value, parameters: test_parameter_dict):
-    return {"float parameter": main_value["Motor Current 1"][0]*5, "int parameter": parameters['test int']}
+class SampleProcessor:
+    def __init__(self):
+        self.parameters = {'test int': int}
+
+    def get_parameters(self):
+        return self.parameters
+    
+    def set_parameters(self, parameters: dict):
+        for key in parameters.keys():
+            if key in self.parameters.keys():
+                self.parameters[key] = parameters[key]
+            else:
+                raise ValueError("The parameter {} is not supported by this processor".format(key))
+    
+    def execute(self, main_value):
+        return {"float parameter": 5*float(main_value['Motor Current 1'][0]), 
+            "string parameter": 'Hallo', 
+            "int parameter": self.parameters['test int'],
+            "vector parameter x": 1.0,
+            "vector parameter y": 1.0
+        }
 
 class TestProcessingNodeIntegration(unittest.TestCase):
     @classmethod
@@ -28,9 +49,12 @@ class TestProcessingNodeIntegration(unittest.TestCase):
         self.node = rclpy.create_node('test_processing_node_integration')
 
         pub = self.node.create_publisher(Float32, 'sensor_data', 10)
+        pub_fake = self.node.create_publisher(Float32, 'second_data_fake', 10)
 
         self.received_ints = []
         self.received_floats = []
+        self.received_strs = []
+        self.received_vectors = []
 
         sub_float = self.node.create_subscription(Float32,
             'ExampleFloat',
@@ -43,25 +67,44 @@ class TestProcessingNodeIntegration(unittest.TestCase):
             10
         )
 
+        sub_str = self.node.create_subscription(String,
+            'ExampleString',
+            lambda msg: self.received_strs.append(msg.data),
+            10
+        )
+
+        sub_vector = self.node.create_subscription(Vector3,
+            'ExampleVector',
+            lambda msg: self.received_vectors.append(1),
+            10
+        )
+
         msg = Float32()
+
         msg.data = 20.0
+        # Test that multiple parameters on same topic work and dont result in sending multiple messages
+        pub.publish(msg)
+        pub_fake.publish(msg)
 
         second_executor = SingleThreadedExecutor()
-        processsing_node = ProcessingNode(sample_function, get_config_file_path('config.yaml'))
+        sample_processor = SampleProcessor()
+        processsing_node = ProcessingNode(sample_processor, get_config_file_path('integration_config.yaml'))
         processsing_node.set_parameters([rclpy.parameter.Parameter('test int', value=8)])
         second_executor.add_node(processsing_node)
         second_executor.add_node(self.node)
 
-        end_time = time.time() + 10
+        end_time = time.time() + 20
         while time.time() < end_time:
 
             pub.publish(msg)
+            pub_fake.publish(msg)
 
             second_executor.spin_once()
 
-            if len(self.received_ints)*len(self.received_floats)>1:
+            if len(self.received_ints)*len(self.received_floats)*len(self.received_strs)>1:
                 break
 
+        self.fake_pub_subscriber_count = pub_fake.get_subscription_count()
         processsing_node.destroy_node()
 
     def tearDown(self):
@@ -80,6 +123,20 @@ class TestProcessingNodeIntegration(unittest.TestCase):
         test_config
         """
         assert len(self.received_ints)>0, 'Did not receive messages from topic "ExampleInt"'
+    
+    def test_processing_node_vector_publisher(self):
+        """
+        This tests wether or not the ProcessingNode publishes on the topic "ExampleVector" given in the
+        test_config
+        """
+        assert len(self.received_vectors)>0, 'Did not receive messages from topic "ExampleVector"'
+    
+    def test_subscriber_setup(self):
+        """
+        This tests wether or not the ProcessingNode subscribes to the correct topic "sensor_data" 
+        and not "sensor_data_fake"
+        """
+        assert self.fake_pub_subscriber_count == 0, 'Subscribed to the wrong topic!'
 
     def test_processing_node_calculate_output(self):
         """
@@ -96,3 +153,13 @@ class TestProcessingNodeIntegration(unittest.TestCase):
         ProcessingNode is supposed to publish it on the topic "ExampleInt"
         """
         assert self.received_ints[0] == 8, 'Parameter setting does not work'
+    
+    def test_multiple_parameters_same_message(self):
+        """
+        This tests wether multiple parameters on the same message lead to multiple messages being sent
+        or not
+        """
+        assert len(self.received_vectors) == len(self.received_strs), 'Number of messages received on topic "ExampleVector" differs from the number of messages received on topic "ExampleString"'
+
+    def test_string(self):
+        assert self.received_strs[0] == "Hallo", "String does not work"
