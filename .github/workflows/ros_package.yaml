@@ -11,5 +11,5 @@ jobs:
           image-name: ghcr.io/wbk-robotics/ros_ml_deploy
       - name: Launch
         run:  |
-              docker ps
+              ros2 topic list
               
