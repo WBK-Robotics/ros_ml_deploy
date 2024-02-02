@@ -9,6 +9,7 @@ jobs:
           base-image: rwthika/ros2:humble
           command: ros2 topic list >> $GITHUB_OUTPUT
           image-name: ghcr.io/wbk-robotics/ros_ml_deploy
+          target: dev
       - name: Launch
         run:  |
               ros2 topic list
