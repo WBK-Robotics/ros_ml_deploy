@@ -19,5 +19,6 @@ jobs:
          password: ${{ secrets.github_token }}
      steps:
        - name: Testrun
+         shell: bash
          run: ros2 topic list
         
