@@ -3,8 +3,12 @@ jobs:
   docker-ros:
     runs-on: ubuntu-latest
     steps:
-      - uses: ika-rwth-aachen/docker-ros@v1.3.1
+      - name: Setup
+        uses: ika-rwth-aachen/docker-ros@v1.3.1
         with:
           base-image: rwthika/ros2:humble
           command: ros2 topic list >> $GITHUB_OUTPUT
           image-name: ghcr.io/wbk-robotics/ros_ml_deploy
+      - name: Launch
+        run: echo test 
+             docker launch
