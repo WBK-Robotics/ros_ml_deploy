@@ -7,9 +7,10 @@ jobs:
         uses: ika-rwth-aachen/docker-ros@v1.3.1
         with:
           base-image: rwthika/ros2:humble
-          command: ros2 topic list >> $GITHUB_OUTPUT
+          command: ros2 topic list
           image-name: ghcr.io/wbk-robotics/ros_ml_deploy
-          target: dev
+          enable-push-as-latest: true
+          target: run
   launch:
      needs: docker-ros
      runs-on: ubuntu-latest
