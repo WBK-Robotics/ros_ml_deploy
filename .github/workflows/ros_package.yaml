@@ -10,4 +10,7 @@ jobs:
           command: ros2 topic list >> $GITHUB_OUTPUT
           image-name: ghcr.io/wbk-robotics/ros_ml_deploy
       - name: Launch
-        run: python3 -m pytest src/processing_node -v
+        run:  |
+              python3 -m pip install pytest
+              python3 -m pytest src/processing_node -v
+              
