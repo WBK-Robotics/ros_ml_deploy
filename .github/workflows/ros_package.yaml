@@ -20,5 +20,5 @@ jobs:
      steps:
        - name: Testrun
          shell: bash
-         run: ls
+         run: ls >> "$GITHUB_OUTPUT"
         
