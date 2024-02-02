@@ -10,7 +10,14 @@ jobs:
           command: ros2 topic list >> $GITHUB_OUTPUT
           image-name: ghcr.io/wbk-robotics/ros_ml_deploy
           target: dev
-      - name: Launch
-        run:  |
-              ros2 topic list
-              
+  launch:
+     runs-on: ubuntu-latest
+     container:
+       image: ghcr.io/wbk-robotics/ros_ml_deploy
+       credentials:
+         username: ${{ github.actor }}
+         password: ${{ secrets.github_token }}
+     steps:
+       - name: Testrun
+         run: ros2 topic list
+        
