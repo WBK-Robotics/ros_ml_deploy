@@ -11,7 +11,7 @@ class ProcessingNode(Node):
     to a config and handles the data transfer to a processing function
 
     Attributes:
-        supported_message_types_to_publish (dict): dict that is filled with imported message types
+        supported_message_types (dict): dict that is filled with imported message types
         
         aggregated_input_data (dict): dict that is filled with data gathered from
         the set up subscribers to be used as input data for the processing model
@@ -31,6 +31,7 @@ class ProcessingNode(Node):
 
         Args:
             processor (object): Object that contains the function to be executed.
+            config_path (str): Path to the config file.
             frequency (float): Frequency at which the function should be called.
         """
 
