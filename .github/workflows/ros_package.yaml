@@ -7,4 +7,4 @@ jobs:
         with:
           base-image: rwthika/ros2:humble
           command: colcon test
-          image-name: ghcr.io/ros_ml_deploy
+          image-name: ghcr.io/wbk-robotics/ros_ml_deploy
