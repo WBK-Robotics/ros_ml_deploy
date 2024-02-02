@@ -6,5 +6,5 @@ jobs:
       - uses: ika-rwth-aachen/docker-ros@v1.3.1
         with:
           base-image: rwthika/ros2:humble
-          command: colcon test
+          command: python3 -m pytest -v
           image-name: ghcr.io/wbk-robotics/ros_ml_deploy
