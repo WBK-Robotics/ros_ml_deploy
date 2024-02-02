@@ -11,6 +11,7 @@ jobs:
           image-name: ghcr.io/wbk-robotics/ros_ml_deploy
           target: dev
   launch:
+     needs: docker-ros
      runs-on: ubuntu-latest
      container:
        image: ghcr.io/wbk-robotics/ros_ml_deploy
