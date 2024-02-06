@@ -103,6 +103,10 @@ class ProcessingNode(Node):
 
         parameters = processor.get_parameters()
         rclpy.logging.get_logger("processing_node").info(f"Parameters: {parameters}")
+
+        if parameters is None:
+            return
+        
         for param_name, param_type  in parameters.items():
             if self.has_parameter(param_name):
                 self.get_logger().warn(f"Parameter {param_name} is already declared.")
@@ -156,6 +160,7 @@ class ProcessingNode(Node):
                 topic_name,
                 lambda msg, field_names=topic_dict[topic_name] : self.listener_callback(msg, field_names),
                 10)
+            self.get_logger().info(f"Subbed to {topic_name}")
 
     def set_up_publishers(self, topic_dict: dict) -> dict:
         """
