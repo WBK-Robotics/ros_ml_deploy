@@ -1,8 +1,8 @@
 import rclpy
 import csv
+import sys
 
 from asyncio import Future
-from rclpy.node import Node
 
 from processing_node.processing_node import ProcessingNode
 from processing_node.ml_deploy_library import *
@@ -26,7 +26,6 @@ class Recorder:
 
     def execute(self, aggregated_data_dict):
         number_of_input_points = len(max(aggregated_data_dict.values(), key=len))
-        print(number_of_input_points)
         if number_of_input_points >= self.parameters["number_of_input_points"]:
             with open('/root/mounted_folder/Files/testfile.csv', 'w') as f:
                 w = csv.writer(f)
@@ -35,9 +34,16 @@ class Recorder:
         
 
 def main():
+
+    try:
+        config_path = sys.argv[1]
+    except IndexError:
+        print("Missing argument: config path")
+        return()
+    
     rclpy.init(args=None)
     recorder_object = Recorder()
-    config_path = '/root/mounted_folder/ros_ml_deploy/config/config.yaml'
+
     config = load_config(config_path)
     if 'Outputs' in config:
         config.pop('Outputs')
