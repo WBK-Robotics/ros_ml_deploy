@@ -19,13 +19,13 @@ class ProcessingNode(Node):
         publisher_dict (dict): dict containing the mapping information of output data to 
         respective output publisher
 
-        function_to_execute (function): the processing function to be executed 
+        processor (object): Object that contains the function to be executed 
 
         timer (Timer): Timer that calls function_to_execute with a frequency specified
         in construction   
     """
 
-    def __init__(self, processor: object, config_path:str=None, frequency: float=30.0):
+    def __init__(self, processor: object, config_path:str=None, frequency: float=30.0, config:dict = None):
         """
         Initializes the ProcessingNode with a given function.
 
@@ -33,13 +33,18 @@ class ProcessingNode(Node):
             processor (object): Object that contains the function to be executed.
             config_path (str): Path to the config file.
             frequency (float): Frequency at which the function should be called.
+            config (dict): Alternative setup with direct config passing
         """
 
         # init both base classes
         Node.__init__(self, "processing_node")
         check_processor(processor)
 
-        self._config = load_config(config_path)
+        if config is None:
+            self._config = load_config(config_path)
+        else:
+            self._config = config
+
         # check that the config file is valid:
         config_is_valid, error_message = check_if_config_is_valid(self._config)
         if not config_is_valid:
