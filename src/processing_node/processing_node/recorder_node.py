@@ -1,31 +1,39 @@
 import rclpy
+import csv
+import sys
 
 from rclpy.node import Node
 
+from processing_node.processing_node import ProcessingNode
 from processing_node.ml_deploy_library import *
 
-class RecorderNode(Node):
-    """
-    ROS 2 Node that sets up subscribers according to a config and gathers incoming data
-    into a file
-    
-    Attributes: 
-        aggregated_input_data (dict):  dict that is filled with data gathered from
-        the set up subscribers to be saved into a file
-    """
+class Recorder:
 
-    def __init__(self, config_path:str=None):
-        """
-        Initializes the Recorder Node.
-        
-        Args:
-            config_path (str): Path to the config file.
-        """
-        Node.__init__(self, "recorder_node")
-
-        self._config = load_config(config_path)
-        # check that the config file is valid:
-        config_is_valid, error_message = check_if_config_is_valid(self._config)
-        if not config_is_valid:
-            raise ValueError(error_message)
+    def __init__(self):
+        pass
     
+    def set_parameters(self):
+        # TODO: Possibly set wanted amount of data here?
+        pass
+    
+    def get_parameters(self):
+        pass
+
+    def execute(self, aggregated_data_dict):
+        with open('/root/mounted_folder/Files/testfile.csv', 'w') as f:
+            w = csv.writer(f)
+            w.writerows(aggregated_data_dict.items())
+
+def main():
+    rclpy.init(args=None)
+    recorder_object = Recorder()
+    config_path = '/root/mounted_folder/ros_ml_deploy/config/config.yaml'
+    config = load_config(config_path)
+    if 'Outputs' in config:
+        config.pop('Outputs')
+    
+    processsing_node = ProcessingNode(recorder_object, config=config,frequency=1)
+
+    rclpy.spin(processsing_node)
+
+# TODO: Manual config loading, removing outputs from config, setting up function with csv export

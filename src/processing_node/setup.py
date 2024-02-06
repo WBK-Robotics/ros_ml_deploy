@@ -20,5 +20,6 @@ setup(
     license='MIT',
     tests_require=['pytest'],
     entry_points={
+        'console_scripts': ['recorder=processing_node.recorder_node:main'],
     },
 )
