@@ -25,7 +25,7 @@ class ProcessingNode(Node):
         in construction   
     """
 
-    def __init__(self, processor: object, config_path:str=None, frequency: float=30.0, config:dict = None):
+    def __init__(self, processor: object, config_path:str=None, frequency: float=30.0):
         """
         Initializes the ProcessingNode with a given function.
 
@@ -40,10 +40,7 @@ class ProcessingNode(Node):
         Node.__init__(self, "processing_node")
         check_processor(processor)
 
-        if config is None:
-            self._config = load_config(config_path)
-        else:
-            self._config = config
+        self._config = load_config(config_path)
 
         # check that the config file is valid:
         config_is_valid, error_message = check_if_config_is_valid(self._config)
