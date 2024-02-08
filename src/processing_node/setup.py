@@ -9,7 +9,7 @@ setup(
     data_files=[
         ('share/' + package_name, ['package.xml']),
         # Add this line to include your YAML files
-        ('share/' + package_name + '/test/test_config', ['test/test_config/config.yaml', 'test/test_config/integration_config.yaml']),
+        ('share/' + package_name + '/test/test_config', ['test/test_config/config.yaml', 'test/test_config/integration_config.yaml', 'test/test_config/recorder_test_config.yaml']),
         ('share/' + package_name + '/config', ['config/config.yaml']),
     ],
     install_requires=['setuptools'],
