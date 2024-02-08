@@ -20,7 +20,7 @@ def get_config_file_path(filename):
 
 class RecorderNode(ProcessingNode):
 
-    def __init__(self, config_path:str=None, outfile:StringIO=None, frequency: float=30.0):
+    def __init__(self, config_path:str=None, outfile:StringIO=None, number_of_input_points:int=1000, frequency: float=30.0):
         rclpy.node.Node.__init__(self, "recorder_node")
 
         self._config = load_config(config_path)
@@ -37,7 +37,7 @@ class RecorderNode(ProcessingNode):
         input_topic_dict = map_input_and_output_names_to_topics(self._config)[0]
         self.set_up_subscriptions(input_topic_dict)
 
-        self.declare_parameter("number_of_input_points", 1000)
+        self.declare_parameter("number_of_input_points", number_of_input_points)
 
         # Set model timer period
         timer_period = 1.0 / frequency
@@ -47,10 +47,15 @@ class RecorderNode(ProcessingNode):
         self.recording_done = Future()
 
     def execute(self):
-        number_of_input_points = len(max(self.aggregated_input_data.values(), key=len))
-        if number_of_input_points >= self.get_parameter("number_of_input_points").value:
-            w = csv.writer(self.outfile)
-            w.writerows(self.aggregated_input_data.items())
+        actual_number_of_input_points = len(max(self.aggregated_input_data.values(), key=len))
+        should_number_of_input_points = self.get_parameter("number_of_input_points").value
+        
+        if actual_number_of_input_points >= should_number_of_input_points:
+            for key in self.aggregated_input_data.keys():
+                self.aggregated_input_data[key] = self.aggregated_input_data[key][:should_number_of_input_points]
+            w = csv.DictWriter(self.outfile, self.aggregated_input_data.keys())
+            w.writeheader()
+            w.writerow(self.aggregated_input_data)
             self.recording_done.set_result("Done")
         
 
