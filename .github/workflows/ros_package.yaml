@@ -1,9 +1,24 @@
-on: push
+on: fork
 jobs:
   docker-ros:
     runs-on: ubuntu-latest
     steps:
-      - uses: ika-rwth-aachen/docker-ros@v1.3.1
+      - name: Setup
+        uses: ika-rwth-aachen/docker-ros@v1.3.1
         with:
           base-image: rwthika/ros2:humble
-          command: colcon test
+          command: ros2 topic list
+          image-name: ghcr.io/wbk-robotics/ros_ml_deploy
+  launch:
+     needs: docker-ros
+     runs-on: ubuntu-latest
+     container:
+       image: ghcr.io/wbk-robotics/ros_ml_deploy:latest_recorder-node_ci
+       credentials:
+         username: ${{ github.actor }}
+         password: ${{ secrets.github_token }}
+     steps:
+       - name: Testrun
+         shell: bash
+         run: ls >> "$GITHUB_OUTPUT"
+        

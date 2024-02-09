@@ -1,0 +1,20 @@
+Inputs:
+  Param 1:
+    Description: "Float"
+    Topic: "record_data_float"
+    Field: ["data"]
+    MessageType: "Float32"
+  Param 2:
+    Description: "String"
+    Topic: "record_data_string"
+    Field: ["data"]
+    MessageType: "String"
+Imports:
+  Float32:
+    Package: "std_msgs.msg"
+    Module: "Float32"
+  String:
+    Package: "std_msgs.msg"
+    Module: "String"
+
+      
