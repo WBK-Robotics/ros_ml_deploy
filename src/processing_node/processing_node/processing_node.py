@@ -1,28 +1,20 @@
 import rclpy
-from rclpy.node import Node
 from rcl_interfaces.msg import SetParametersResult
 
 from processing_node.ml_deploy_library import *
+from processing_node.config_handler_node import ConfigHandlerNode
 
 
-class ProcessingNode(Node):
+class ProcessingNode(ConfigHandlerNode):
     """
-    Ros2 node that sets up input subscribers and output publishers according
+    ROS2 node that sets up input subscribers and output publishers according
     to a config and handles the data transfer to a processing function
 
     Attributes:
-        supported_message_types (dict): dict that is filled with imported message types
-        
-        aggregated_input_data (dict): dict that is filled with data gathered from
-        the set up subscribers to be used as input data for the processing model
-
         publisher_dict (dict): dict containing the mapping information of output data to 
         respective output publisher
 
         processor (object): Object that contains the function to be executed 
-
-        timer (Timer): Timer that calls function_to_execute with a frequency specified
-        in construction   
     """
 
     def __init__(self, processor: object, config_path:str=None, frequency: float=30.0):
@@ -33,62 +25,17 @@ class ProcessingNode(Node):
             processor (object): Object that contains the function to be executed.
             config_path (str): Path to the config file.
             frequency (float): Frequency at which the function should be called.
-            config (dict): Alternative setup with direct config passing
         """
 
-        # init both base classes
-        Node.__init__(self, "processing_node")
+        # init base class
+        super().__init__(config_path, frequency, "processing_node")
+
         check_processor(processor)
 
-        self._config = load_config(config_path)
-
-        # check that the config file is valid:
-        config_is_valid, error_message = check_if_config_is_valid(self._config)
-        if not config_is_valid:
-            raise ValueError(error_message)
-
-        self.supported_message_types = import_needed_modules(self._config)
-
-        self.aggregated_input_data = dict.fromkeys(self._config['Inputs'].keys(), [])
-
-        input_topic_dict, output_topic_dict = map_input_and_output_names_to_topics(self._config)
-
-        self.set_up_subscriptions(input_topic_dict)
-        self.publisher_dict = self.set_up_publishers(output_topic_dict)
+        self.publisher_dict = self.set_up_publishers(self._output_topic_dict)
 
         self.processor = processor
         self._declare_parameters_for_processor(processor)
-
-        # Set model timer period
-        timer_period = 1.0 / frequency
-
-        # Create timer that calls the processing function
-        self.timer = self.create_timer(timer_period, self.execute_processor)
-
-    def listener_callback(self, msg, field_names: dict):
-        """
-        Function that is called whenever something is published to a subscribed topic 
-        and modifies the data dict accordingly
-
-        Args:
-            msg (ROS2 Message or other struct): Message that triggered the function call
-            field_names (dict): Dict that specifies which fields are carrying what input information
-        """
-
-        # Read the relevant message field and append it to the relevant list in the data dict
-        for input_name in field_names:
-            if input_name != 'MessageType':
-                # Loop over attributes to reach deeper message levels until the actual data is reached
-                base = msg
-                # Check if field name is a string and the message therefore only 1 level deep
-                if isinstance(field_names[input_name], str):
-                    base = getattr(base, field_names[input_name])
-                else:
-                    for i in range(len(field_names[input_name])):
-                        attribute = field_names[input_name][i]
-                        base = getattr(base, attribute)
-                # Does not work with append for whatever reason
-                self.aggregated_input_data[input_name] = self.aggregated_input_data[input_name] + [base]
 
     def _declare_parameters_for_processor(self, processor):
         """
@@ -103,7 +50,7 @@ class ProcessingNode(Node):
 
         if parameters is None:
             return
-        
+
         for param_name, param_type  in parameters.items():
             if self.has_parameter(param_name):
                 self.get_logger().warn(f"Parameter {param_name} is already declared.")
@@ -141,24 +88,6 @@ class ProcessingNode(Node):
         self.processor.set_parameters(param_dict)
         return SetParametersResult(successful=True)
 
-    def set_up_subscriptions(self, topic_dict: dict):
-        """
-        Sets up Subscriptions to topics that are mentioned in topic_dict, 
-        also sets up listener_callback with correct input-message field mapping
-
-        Args:
-            topic_dict (dict): dict that contains the topics to be subscribed to,
-            the inputs they carry and in which field these inputs are
-        """
-
-        for topic_name in topic_dict:
-            msg_type = self.supported_message_types[topic_dict[topic_name]['MessageType']]
-            self.create_subscription(msg_type,
-                topic_name,
-                lambda msg, field_names=topic_dict[topic_name] : self.listener_callback(msg, field_names),
-                10)
-            self.get_logger().info(f"Subbed to {topic_name}")
-
     def set_up_publishers(self, topic_dict: dict) -> dict:
         """
         Sets up publishers according to the outputs specified in the config
@@ -191,7 +120,7 @@ class ProcessingNode(Node):
 
         return topics_to_publish_dict
 
-    def execute_processor(self):
+    def execute(self):
         """
         Function that is called on a timer, sends collected input data to the 
         processing function and publishes the resulting output
