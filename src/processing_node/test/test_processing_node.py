@@ -68,12 +68,12 @@ valid_config = {
 invalid_config = {
     "Inputs": {
         "Motor Current 1": {
-            "Description": "Missing Topic and Field",
+            "Description": "Missing Topic and Message Type" 
         }
     },
     "Outputs": {
         "float parameter": {
-            "Description": "Missing Topic, Field, and MessageType",
+            "Description": "Missing Topic and MessageType",
         }
     },
 
