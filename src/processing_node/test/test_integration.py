@@ -111,11 +111,10 @@ class TestProcessingNodeIntegration(unittest.TestCase):
 
             second_executor.spin_once()
 
-            if len(self.received_ints)*len(self.received_floats)*len(self.received_strs)>1:
+            if len(self.received_ints)*len(self.received_floats)*len(self.received_strs)*len(self.received_float_messages)*len(self.received_vectors)>1:
                 break
 
         self.fake_pub_subscriber_count = pub_fake.get_subscription_count()
-        processsing_node.destroy_node()
 
     def tearDown(self):
         self.node.destroy_node()
