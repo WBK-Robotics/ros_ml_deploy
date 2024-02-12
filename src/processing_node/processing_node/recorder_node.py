@@ -45,6 +45,8 @@ class RecorderNode(ConfigHandlerNode):
 
         super().__init__(config_path, frequency, "recorder_node")
 
+        print(str(self._input_topic_dict))
+
         self.outfile = outfile
 
         self.recording_done = Future()
@@ -54,7 +56,7 @@ class RecorderNode(ConfigHandlerNode):
     def execute(self):
         """
         Function that is called on a timer, checks if the minimum number of input points has
-        been achived, writes the data into the outfile and sets recording_done to "Done"
+        been recorded, writes the data into the outfile and sets recording_done to "Done"
         """
         actual_number_of_input_points = len(max(self.aggregated_input_data.values(), key=len))
         should_number_of_input_points = self.get_parameter("number_of_input_points").value
@@ -84,8 +86,6 @@ def main():
     config_path = get_config_file_path('config.yaml')
 
     with open(path_to_csv, 'w') as csv_out_file:
-        recorder_node = RecorderNode(config_path, csv_out_file, frequency=200)
+        recorder_node = RecorderNode(config_path, csv_out_file, number_of_input_points=10, frequency=200)
 
         rclpy.spin_until_future_complete(recorder_node, recorder_node.recording_done)
-
-    return()

@@ -49,7 +49,7 @@ def check_if_config_is_valid(config: dict):
         config["Inputs"] = []
 
     for input_name in config["Inputs"]:
-        for necessary_part in ["Topic", "Field"]:
+        for necessary_part in ["Topic"]:
             if necessary_part not in config["Inputs"][input_name]:
                 error_message += f"Config Format Error: Input {input_name} has no '{necessary_part}' \n"
                 config_is_valid = False
@@ -67,7 +67,7 @@ def check_if_config_is_valid(config: dict):
         config["Outputs"] = []
 
     for output_name in config["Outputs"]:
-        for necessary_part in ["Topic", "Field"]:
+        for necessary_part in ["Topic"]:
             if necessary_part not in config["Outputs"][output_name]:
                 error_message += f"Config Format Error: Output {output_name} has no '{necessary_part}' \n"
                 config_is_valid = False
@@ -101,21 +101,29 @@ def map_input_and_output_names_to_topics(config: dict) -> tuple[dict, dict]:
 
         for key in config['Inputs']:
             topic = config['Inputs'][key]['Topic']
-            field = config['Inputs'][key]['Field']
-            if topic not in input_topic_dict:
-                input_topic_dict[topic] = {key: field}
-                input_topic_dict[topic]['MessageType'] = config['Inputs'][key]['MessageType']
+            if 'Field' in config['Inputs'][key]:
+                field = config['Inputs'][key]['Field']
+                if topic not in input_topic_dict:
+                    input_topic_dict[topic] = {key: field}
+                    input_topic_dict[topic]['MessageType'] = config['Inputs'][key]['MessageType']
+                else:
+                    input_topic_dict[topic][key] = field
             else:
-                input_topic_dict[topic][key] = field
+                input_topic_dict[topic] = {key: 'FullMessage'}
+                input_topic_dict[topic]['MessageType'] = config['Inputs'][key]['MessageType']
 
         for key in config['Outputs']:
             topic = config['Outputs'][key]['Topic']
-            field = config['Outputs'][key]['Field']
-            if topic not in output_topic_dict:
-                output_topic_dict[topic] = {key: field}
-                output_topic_dict[topic]['MessageType'] = config['Outputs'][key]['MessageType']
+            if 'Field' in config['Outputs'][key]:
+                field = config['Outputs'][key]['Field']
+                if topic not in output_topic_dict:
+                    output_topic_dict[topic] = {key: field}
+                    output_topic_dict[topic]['MessageType'] = config['Outputs'][key]['MessageType']
+                else:
+                    output_topic_dict[topic][key] = field
             else:
-                output_topic_dict[topic][key] = field
+                output_topic_dict[topic] = {key: 'FullMessage'}
+                output_topic_dict[topic]['MessageType'] = config['Ouptuts'][key]['MessageType']
 
         return input_topic_dict, output_topic_dict
 
