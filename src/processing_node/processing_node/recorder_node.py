@@ -45,8 +45,6 @@ class RecorderNode(ConfigHandlerNode):
 
         super().__init__(config_path, frequency, "recorder_node")
 
-        print(str(self._input_topic_dict))
-
         self.outfile = outfile
 
         self.recording_done = Future()

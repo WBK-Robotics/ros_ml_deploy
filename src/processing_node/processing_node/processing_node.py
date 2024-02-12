@@ -143,14 +143,19 @@ class ProcessingNode(ConfigHandlerNode):
                 output_msg = message_type()
                 for output in self.publisher_dict[topic]['Fields']:
                     field = self.publisher_dict[topic]['Fields'][output]
-                    # Check if field is only a string and the message therefore only 1 level deep
-                    if isinstance(field, str):
-                        field = [field]
-                    try:
-                        data = processed_data[output]
-                        output_msg = set_nested_attribute(output_msg, field, data)
-                    except:
-                        self.get_logger().warn(f'Output {output} not found in model output or wrong data type')
+                    # Check if no further field is specified, in which case the output data 
+                    # is expected to be a publishable message type
+                    if field == 'FullMessage':
+                        output_msg = processed_data[output]
+                    else:
+                        # Check if field is only a string and the message therefore only 1 level deep
+                        if isinstance(field, str):
+                            field = [field]
+                        try:
+                            data = processed_data[output]
+                            output_msg = set_nested_attribute(output_msg, field, data)
+                        except:
+                            self.get_logger().warn(f'Output {output} not found in model output or wrong data type')
                 try:
                     self.publisher_dict[topic]['Publisher'].publish(output_msg)
                 except:

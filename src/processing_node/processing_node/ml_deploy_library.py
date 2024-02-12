@@ -123,7 +123,7 @@ def map_input_and_output_names_to_topics(config: dict) -> tuple[dict, dict]:
                     output_topic_dict[topic][key] = field
             else:
                 output_topic_dict[topic] = {key: 'FullMessage'}
-                output_topic_dict[topic]['MessageType'] = config['Ouptuts'][key]['MessageType']
+                output_topic_dict[topic]['MessageType'] = config['Outputs'][key]['MessageType']
 
         return input_topic_dict, output_topic_dict
 

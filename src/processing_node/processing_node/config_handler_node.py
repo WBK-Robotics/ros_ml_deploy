@@ -78,7 +78,6 @@ class ConfigHandlerNode(Node):
                         base = getattr(base, attribute)
                 # Does not work with append for whatever reason
                 self.aggregated_input_data[input_name] = self.aggregated_input_data[input_name] + [base]
-                print(self.aggregated_input_data)
 
     def set_up_subscriptions(self, topic_dict: dict):
         """
