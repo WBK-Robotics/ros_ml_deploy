@@ -108,9 +108,12 @@ def map_input_and_output_names_to_topics(config: dict) -> tuple[dict, dict]:
                     input_topic_dict[topic]['MessageType'] = config['Inputs'][key]['MessageType']
                 else:
                     input_topic_dict[topic][key] = field
-            else:
-                input_topic_dict[topic] = {key: 'FullMessage'}
-                input_topic_dict[topic]['MessageType'] = config['Inputs'][key]['MessageType']
+            else: 
+                if topic not in input_topic_dict:
+                    input_topic_dict[topic] = {key: 'FullMessage'}
+                    input_topic_dict[topic]['MessageType'] = config['Inputs'][key]['MessageType']
+                else:
+                    input_topic_dict[topic][key] = 'FullMessage'
 
         for key in config['Outputs']:
             topic = config['Outputs'][key]['Topic']
@@ -122,9 +125,11 @@ def map_input_and_output_names_to_topics(config: dict) -> tuple[dict, dict]:
                 else:
                     output_topic_dict[topic][key] = field
             else:
-                output_topic_dict[topic] = {key: 'FullMessage'}
-                output_topic_dict[topic]['MessageType'] = config['Outputs'][key]['MessageType']
-
+                if topic not in output_topic_dict:
+                    output_topic_dict[topic] = {key: 'FullMessage'}
+                    output_topic_dict[topic]['MessageType'] = config['Outputs'][key]['MessageType']
+                else:
+                    output_topic_dict[topic][key] = 'FullMessage'
         return input_topic_dict, output_topic_dict
 
 def check_processor(processor: object) -> bool:
