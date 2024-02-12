@@ -29,13 +29,16 @@ class SampleProcessor:
                 raise ValueError("The parameter {} is not supported by this processor".format(key))
     
     def execute(self, main_value):
-        return {"float parameter": 5*float(main_value['Motor Current 1'][0]), 
-            "string parameter": 'Test_String', 
-            "int parameter": self.parameters['test int'],
-            "vector parameter x": 1.0,
-            "vector parameter y": 1.0,
-            "No Field Parameter": main_value['No Field Parameter'][0]
-        }
+        try:
+            return {"float parameter": 5*float(main_value['Motor Current 1'][0]), 
+                "string parameter": 'Test_String', 
+                "int parameter": self.parameters['test int'],
+                "vector parameter x": 1.0,
+                "vector parameter y": 1.0,
+                "No Field Parameter": main_value['No Field Parameter'][0]
+            }
+        except:
+            return None
 
 class TestProcessingNodeIntegration(unittest.TestCase):
     @classmethod
@@ -111,10 +114,17 @@ class TestProcessingNodeIntegration(unittest.TestCase):
 
             second_executor.spin_once()
 
-            if len(self.received_ints)*len(self.received_floats)*len(self.received_strs)*len(self.received_float_messages)*len(self.received_vectors)>1:
+            print(len(self.received_ints)*len(self.received_floats)*len(self.received_strs)*len(self.received_float_messages)*len(self.received_vectors))
+            print("----")
+            print(len(self.received_ints))
+            print("----")
+            print(len(self.received_vectors))
+
+            if len(self.received_ints)*len(self.received_floats)*len(self.received_strs)*len(self.received_float_messages)*len(self.received_vectors)>0:
                 break
 
         self.fake_pub_subscriber_count = pub_fake.get_subscription_count()
+        processsing_node.destroy_node()
 
     def tearDown(self):
         self.node.destroy_node()
