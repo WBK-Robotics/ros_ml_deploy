@@ -51,6 +51,9 @@ class RecorderNode(ConfigHandlerNode):
 
         self.declare_parameter("number_of_input_points", number_of_input_points)
 
+        self.writer = csv.DictWriter(self.outfile, self.aggregated_input_data.keys())
+        self.writer.writeheader()
+
     def execute(self):
         """
         Function that is called on a timer, checks if the minimum number of input points has
@@ -59,14 +62,19 @@ class RecorderNode(ConfigHandlerNode):
         actual_number_of_input_points = len(max(self.aggregated_input_data.values(), key=len))
         should_number_of_input_points = self.get_parameter("number_of_input_points").value
 
+        for key in self.aggregated_input_data.keys():
+            self.aggregated_input_data[key] = self.aggregated_input_data[key][:should_number_of_input_points]
+    
+        
         if actual_number_of_input_points >= should_number_of_input_points:
-            for key in self.aggregated_input_data.keys():
-                self.aggregated_input_data[key] = self.aggregated_input_data[key][:should_number_of_input_points]
-            w = csv.DictWriter(self.outfile, self.aggregated_input_data.keys())
-            w.writeheader()
-            w.writerow(self.aggregated_input_data)
+            self.writer.writerow(self.aggregated_input_data)
             self.recording_done.set_result("Done")
 
+    def write_to_file(self):
+        """
+        Function that is called when the node is shut down manually and ensures file output
+        """
+        self.writer.writerow(self.aggregated_input_data)
 
 def main():
     """
@@ -84,6 +92,9 @@ def main():
     config_path = get_config_file_path('config.yaml')
 
     with open(path_to_csv, 'w') as csv_out_file:
-        recorder_node = RecorderNode(config_path, csv_out_file, number_of_input_points=10, frequency=200)
+        recorder_node = RecorderNode(config_path, csv_out_file, number_of_input_points=1000, frequency=200)
 
-        rclpy.spin_until_future_complete(recorder_node, recorder_node.recording_done)
+        try:
+            rclpy.spin_until_future_complete(recorder_node, recorder_node.recording_done)
+        except KeyboardInterrupt:
+            recorder_node.write_to_file()
