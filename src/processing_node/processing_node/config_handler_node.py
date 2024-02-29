@@ -77,6 +77,8 @@ class ConfigHandlerNode(Node):
                         attribute = field_names[input_name][i]
                         base = getattr(base, attribute)
                 # Does not work with append for whatever reason
+                if type(base) == array.array:
+                    base = base.tolist()
                 self.aggregated_input_data[input_name] = self.aggregated_input_data[input_name] + [base]
 
     def set_up_subscriptions(self, topic_dict: dict):
