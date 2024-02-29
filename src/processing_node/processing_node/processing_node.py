@@ -17,7 +17,7 @@ class ProcessingNode(ConfigHandlerNode):
         processor (object): Object that contains the function to be executed 
     """
 
-    def __init__(self, processor: object, config_path:str=None, frequency: float=30.0):
+    def __init__(self, processor: object, config_path:str=None, frequency: float=30.0, node_handle:str="processing_node"):
         """
         Initializes the ProcessingNode with a given function.
 
@@ -28,7 +28,7 @@ class ProcessingNode(ConfigHandlerNode):
         """
 
         # init base class
-        super().__init__(config_path, frequency, "processing_node")
+        super().__init__(config_path, frequency, node_handle)
 
         check_processor(processor)
 
@@ -125,8 +125,9 @@ class ProcessingNode(ConfigHandlerNode):
         Function that is called on a timer, sends collected input data to the 
         processing function and publishes the resulting output
         """
+        max_length = 0
 
-        if len(self.aggregated_input_data) == 0:
+        if self.aggregated_input_data == dict.fromkeys(self.aggregated_input_data.keys(), []):
             return
 
         #  Call processing function
