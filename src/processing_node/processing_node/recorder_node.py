@@ -1,10 +1,8 @@
 import csv
-import sys
 import os
 import argparse
 
 from asyncio import Future
-from io import StringIO
 
 import ament_index_python
 import rclpy
@@ -59,8 +57,8 @@ class RecorderNode(ConfigHandlerNode):
         """
         actual_number_of_input_points = len(max(self.aggregated_input_data.values(), key=len))
         should_number_of_input_points = self.get_parameter("number_of_input_points").value
-        
-        if actual_number_of_input_points >= should_number_of_input_points and should_number_of_input_points >= 0:
+
+        if actual_number_of_input_points >= should_number_of_input_points >= 0:
             for key in self.aggregated_input_data.keys():
                 self.aggregated_input_data[key] = self.aggregated_input_data[key][:should_number_of_input_points]
             self.write_to_files()
@@ -72,17 +70,17 @@ class RecorderNode(ConfigHandlerNode):
         """
         actual_number_of_input_points = len(max(self.aggregated_input_data.values(), key=len))
         should_number_of_input_points = self.get_parameter("number_of_input_points").value
-        
-        if actual_number_of_input_points >= should_number_of_input_points and should_number_of_input_points >= 0:
+
+        if actual_number_of_input_points >= should_number_of_input_points >= 0:
             for key in self.aggregated_input_data.keys():
                 self.aggregated_input_data[key] = self.aggregated_input_data[key][:should_number_of_input_points]
-        
+
         for topic in self._input_topic_dict:
             with open(f"{self.output_folder_path}/{topic}.csv", "w") as file:
                 writer = csv.writer(file)
-                header = [key for key in self._input_topic_dict[topic].keys()]
+                header = list(self._input_topic_dict[topic].keys())
                 header.remove('MessageType')
-                
+
                 writer.writerow(header)
                 for element_number in range(len(self.aggregated_input_data[header[0]])):
                     row = []
