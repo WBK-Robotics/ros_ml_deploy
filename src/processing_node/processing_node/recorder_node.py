@@ -61,12 +61,10 @@ class RecorderNode(ConfigHandlerNode):
         """
         actual_number_of_input_points = len(max(self.aggregated_input_data.values(), key=len))
         should_number_of_input_points = self.get_parameter("number_of_input_points").value
-
-        for key in self.aggregated_input_data.keys():
-            self.aggregated_input_data[key] = self.aggregated_input_data[key][:should_number_of_input_points]
-    
         
-        if actual_number_of_input_points >= should_number_of_input_points:
+        if actual_number_of_input_points >= should_number_of_input_points and should_number_of_input_points >= 0:
+            for key in self.aggregated_input_data.keys():
+                self.aggregated_input_data[key] = self.aggregated_input_data[key][:should_number_of_input_points]
             self.writer.writerow(self.aggregated_input_data)
             self.recording_done.set_result("Done")
 
@@ -74,6 +72,13 @@ class RecorderNode(ConfigHandlerNode):
         """
         Function that is called when the node is shut down manually and ensures file output
         """
+        actual_number_of_input_points = len(max(self.aggregated_input_data.values(), key=len))
+        should_number_of_input_points = self.get_parameter("number_of_input_points").value
+        
+        if actual_number_of_input_points >= should_number_of_input_points and should_number_of_input_points >= 0:
+            for key in self.aggregated_input_data.keys():
+                self.aggregated_input_data[key] = self.aggregated_input_data[key][:should_number_of_input_points]
+                
         self.writer.writerow(self.aggregated_input_data)
 
 def main():
@@ -84,15 +89,20 @@ def main():
     try:
         path_to_csv = sys.argv[1]
     except IndexError:
-        print("Missing argument: path to csv")
+        print("Missing argument: path to csv folder")
         return()
+
+    try: 
+        number_of_input_points = sys.argv[2]
+    except IndexError:
+        number_of_input_points = -1
 
     rclpy.init(args=None)
 
     config_path = get_config_file_path('config.yaml')
 
     with open(path_to_csv, 'w') as csv_out_file:
-        recorder_node = RecorderNode(config_path, csv_out_file, number_of_input_points=1000, frequency=200)
+        recorder_node = RecorderNode(config_path, csv_out_file, number_of_input_points, frequency=200)
 
         try:
             rclpy.spin_until_future_complete(recorder_node, recorder_node.recording_done)
