@@ -114,12 +114,6 @@ class TestProcessingNodeIntegration(unittest.TestCase):
 
             second_executor.spin_once()
 
-            print(len(self.received_ints)*len(self.received_floats)*len(self.received_strs)*len(self.received_float_messages)*len(self.received_vectors))
-            print("----")
-            print(len(self.received_ints))
-            print("----")
-            print(len(self.received_vectors))
-
             if len(self.received_ints)*len(self.received_floats)*len(self.received_strs)*len(self.received_float_messages)*len(self.received_vectors)>0:
                 break
 
