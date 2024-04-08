@@ -1,9 +1,8 @@
 import csv
-import sys
 import os
+import argparse
 
 from asyncio import Future
-from io import StringIO
 
 import ament_index_python
 import rclpy
@@ -32,7 +31,7 @@ class RecorderNode(ConfigHandlerNode):
         is reached and allows termination of node execution
     """
 
-    def __init__(self, config_path:str=None, outfile:StringIO=None, number_of_input_points:int=1000, frequency: float=30.0):
+    def __init__(self, config_path:str=None, path_to_csv_folder:str=None, number_of_input_points:int=1000, frequency: float=30.0):
         """
         Initializes the recorder node.
 
@@ -45,14 +44,11 @@ class RecorderNode(ConfigHandlerNode):
 
         super().__init__(config_path, frequency, "recorder_node")
 
-        self.outfile = outfile
+        self.output_folder_path = path_to_csv_folder
 
         self.recording_done = Future()
 
         self.declare_parameter("number_of_input_points", number_of_input_points)
-
-        self.writer = csv.DictWriter(self.outfile, self.aggregated_input_data.keys())
-        self.writer.writeheader()
 
     def execute(self):
         """
@@ -61,50 +57,73 @@ class RecorderNode(ConfigHandlerNode):
         """
         actual_number_of_input_points = len(max(self.aggregated_input_data.values(), key=len))
         should_number_of_input_points = self.get_parameter("number_of_input_points").value
-        
-        if actual_number_of_input_points >= should_number_of_input_points and should_number_of_input_points >= 0:
+
+        if actual_number_of_input_points >= should_number_of_input_points >= 0:
             for key in self.aggregated_input_data.keys():
                 self.aggregated_input_data[key] = self.aggregated_input_data[key][:should_number_of_input_points]
-            self.writer.writerow(self.aggregated_input_data)
+            self.write_to_files()
             self.recording_done.set_result("Done")
 
-    def write_to_file(self):
+    def write_to_files(self):
         """
-        Function that is called when the node is shut down manually and ensures file output
+        Function that writes output files
         """
         actual_number_of_input_points = len(max(self.aggregated_input_data.values(), key=len))
         should_number_of_input_points = self.get_parameter("number_of_input_points").value
-        
-        if actual_number_of_input_points >= should_number_of_input_points and should_number_of_input_points >= 0:
+
+        if actual_number_of_input_points >= should_number_of_input_points >= 0:
             for key in self.aggregated_input_data.keys():
                 self.aggregated_input_data[key] = self.aggregated_input_data[key][:should_number_of_input_points]
-                
-        self.writer.writerow(self.aggregated_input_data)
+
+        for topic in self._input_topic_dict:
+            with open(f"{self.output_folder_path}/{topic}.csv", "w") as file:
+                writer = csv.writer(file)
+                header = list(self._input_topic_dict[topic].keys())
+                header.remove('MessageType')
+
+                writer.writerow(header)
+                for element_number in range(len(self.aggregated_input_data[header[0]])):
+                    row = []
+                    for key in header:
+                        row.append(self.aggregated_input_data[key][element_number])
+                    writer.writerow(row)
 
 def main():
     """
     Method used as an entrypoint.
     """
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--out_folder", help="Needed path to output folder")
+    parser.add_argument("--config_path", help="Optional config path, if none is specified defaults to config/config.yaml")
+    parser.add_argument("--num", help="Optional Number of input points, if none specified defaults to -1 (recording until manual stoppage)")
+
+    args=parser.parse_args()
+
     try:
-        path_to_csv = sys.argv[1]
-    except IndexError:
+        path_to_csv_folder = args.out_folder
+    except:
         print("Missing argument: path to csv folder")
         return()
 
-    try: 
-        number_of_input_points = sys.argv[2]
-    except IndexError:
+    if not os.path.isdir(path_to_csv_folder):
+        os.mkdir(path_to_csv_folder)
+
+    if args.num is not None:
+        number_of_input_points = args.num
+    else:
         number_of_input_points = -1
+
+    if args.config_path is not None:
+        config_path = args.config_path
+    else:
+        config_path = get_config_file_path('config.yaml')
 
     rclpy.init(args=None)
 
-    config_path = get_config_file_path('config.yaml')
+    recorder_node = RecorderNode(config_path, path_to_csv_folder, number_of_input_points, frequency=200)
 
-    with open(path_to_csv, 'w') as csv_out_file:
-        recorder_node = RecorderNode(config_path, csv_out_file, number_of_input_points, frequency=200)
-
-        try:
-            rclpy.spin_until_future_complete(recorder_node, recorder_node.recording_done)
-        except KeyboardInterrupt:
-            recorder_node.write_to_file()
+    try:
+        rclpy.spin_until_future_complete(recorder_node, recorder_node.recording_done)
+    except KeyboardInterrupt:
+        recorder_node.write_to_files()
