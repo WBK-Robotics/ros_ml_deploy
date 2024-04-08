@@ -58,3 +58,5 @@ build/
 install/
 log/
 src/processing_node/processing_node/autoencoder.onnx
+src/ros_ml_deploy_paper_examples/*
+src/ros_ml_messages/*

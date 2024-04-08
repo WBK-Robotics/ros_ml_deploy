@@ -9,6 +9,10 @@ Inputs:
     Topic: "second_data"
     Field: ["data"]
     MessageType: "Float32"
+  No Field Parameter:
+    Description: "Parameter without a field to test subscriber setup"
+    Topic: "third_data"
+    MessageType: "Float32"
 Outputs:
   float parameter: 
     Description: "Example float parameter"
@@ -35,6 +39,10 @@ Outputs:
     Topic: "ExampleVector"
     Field: ["y"]
     MessageType: "Vector3"
+  No Field Parameter:
+    Description: "Parameter without a field to test publisher"
+    Topic: "ExampleNoField"
+    MessageType: "Float32"
 Imports:
   Float32:
     Package: "std_msgs.msg"

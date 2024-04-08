@@ -17,7 +17,7 @@ class ProcessingNode(ConfigHandlerNode):
         processor (object): Object that contains the function to be executed 
     """
 
-    def __init__(self, processor: object, config_path:str=None, frequency: float=30.0):
+    def __init__(self, processor: object, config_path:str=None, frequency: float=30.0, node_handle:str="processing_node"):
         """
         Initializes the ProcessingNode with a given function.
 
@@ -28,7 +28,7 @@ class ProcessingNode(ConfigHandlerNode):
         """
 
         # init base class
-        super().__init__(config_path, frequency, "processing_node")
+        super().__init__(config_path, frequency, node_handle)
 
         check_processor(processor)
 
@@ -125,15 +125,16 @@ class ProcessingNode(ConfigHandlerNode):
         Function that is called on a timer, sends collected input data to the 
         processing function and publishes the resulting output
         """
+        max_length = 0
 
-        if len(self.aggregated_input_data) == 0:
+        if self.aggregated_input_data == dict.fromkeys(self.aggregated_input_data.keys(), []):
             return
 
         #  Call processing function
         processed_data = self.processor.execute(self.aggregated_input_data)
 
         # Reset data dict
-        # self.aggregated_input_data = dict.fromkeys(self.aggregated_input_data.keys(), [])
+        self.aggregated_input_data = dict.fromkeys(self.aggregated_input_data.keys(), [])
 
         # Publish output
         if processed_data is not None:
@@ -143,14 +144,19 @@ class ProcessingNode(ConfigHandlerNode):
                 output_msg = message_type()
                 for output in self.publisher_dict[topic]['Fields']:
                     field = self.publisher_dict[topic]['Fields'][output]
-                    # Check if field is only a string and the message therefore only 1 level deep
-                    if isinstance(field, str):
-                        field = [field]
-                    try:
-                        data = processed_data[output]
-                        output_msg = set_nested_attribute(output_msg, field, data)
-                    except:
-                        self.get_logger().warn(f'Output {output} not found in model output or wrong data type')
+                    # Check if no further field is specified, in which case the output data 
+                    # is expected to be a publishable message type
+                    if field == 'FullMessage':
+                        output_msg = processed_data[output]
+                    else:
+                        # Check if field is only a string and the message therefore only 1 level deep
+                        if isinstance(field, str):
+                            field = [field]
+                        try:
+                            data = processed_data[output]
+                            output_msg = set_nested_attribute(output_msg, field, data)
+                        except:
+                            self.get_logger().warn(f'Output {output} not found in model output or wrong data type')
                 try:
                     self.publisher_dict[topic]['Publisher'].publish(output_msg)
                 except:

@@ -29,12 +29,16 @@ class SampleProcessor:
                 raise ValueError("The parameter {} is not supported by this processor".format(key))
     
     def execute(self, main_value):
-        return {"float parameter": 5*float(main_value['Motor Current 1'][0]), 
-            "string parameter": 'Hallo', 
-            "int parameter": self.parameters['test int'],
-            "vector parameter x": 1.0,
-            "vector parameter y": 1.0
-        }
+        try:
+            return {"float parameter": 5*float(main_value['Motor Current 1'][0]), 
+                "string parameter": 'Test_String', 
+                "int parameter": self.parameters['test int'],
+                "vector parameter x": 1.0,
+                "vector parameter y": 1.0,
+                "No Field Parameter": main_value['No Field Parameter'][0]
+            }
+        except:
+            return None
 
 class TestProcessingNodeIntegration(unittest.TestCase):
     @classmethod
@@ -50,11 +54,13 @@ class TestProcessingNodeIntegration(unittest.TestCase):
 
         pub = self.node.create_publisher(Float32, 'sensor_data', 10)
         pub_fake = self.node.create_publisher(Float32, 'second_data_fake', 10)
+        pub_third = self.node.create_publisher(Float32, 'third_data', 10)
 
         self.received_ints = []
         self.received_floats = []
         self.received_strs = []
         self.received_vectors = []
+        self.received_float_messages = []
 
         sub_float = self.node.create_subscription(Float32,
             'ExampleFloat',
@@ -79,11 +85,18 @@ class TestProcessingNodeIntegration(unittest.TestCase):
             10
         )
 
+        sub_float_full = self.node.create_subscription(Float32,
+            'ExampleNoField',
+            lambda msg: self.received_float_messages.append(msg),
+            10
+        )
+
         msg = Float32()
 
         msg.data = 20.0
         pub.publish(msg)
         pub_fake.publish(msg)
+        pub_third.publish(msg)
 
         second_executor = SingleThreadedExecutor()
         sample_processor = SampleProcessor()
@@ -97,10 +110,11 @@ class TestProcessingNodeIntegration(unittest.TestCase):
 
             pub.publish(msg)
             pub_fake.publish(msg)
+            pub_third.publish(msg)
 
             second_executor.spin_once()
 
-            if len(self.received_ints)*len(self.received_floats)*len(self.received_strs)>1:
+            if len(self.received_ints)*len(self.received_floats)*len(self.received_strs)*len(self.received_float_messages)*len(self.received_vectors)>0:
                 break
 
         self.fake_pub_subscriber_count = pub_fake.get_subscription_count()
@@ -160,5 +174,13 @@ class TestProcessingNodeIntegration(unittest.TestCase):
         """
         assert len(self.received_vectors) == len(self.received_strs), 'Number of messages received on topic "ExampleVector" differs from the number of messages received on topic "ExampleString"'
 
+    def test_no_field_messages(self):
+        """
+        This tests wether messages with no field specified in the config work for both subscribing and publishing
+        """
+        assert len(self.received_float_messages) > 0, "Did not receive messsages from topic ExampleNoField"
+        assert self.received_float_messages[0].data == 20.0, "Message from topic ExampleNoField carries incorrect data"
+
     def test_string(self):
-        assert self.received_strs[0] == "Hallo", "String does not work"
+        assert self.received_strs[0] == "Test_String", "String does not work"
+
