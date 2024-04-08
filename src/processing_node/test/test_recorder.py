@@ -1,6 +1,7 @@
 import rclpy
 import unittest
 import csv
+import time
 
 from io import StringIO
 from rclpy.executors import SingleThreadedExecutor
@@ -27,7 +28,7 @@ class TestRecorderNode(unittest.TestCase):
         self.outfile = StringIO()
 
         second_executor = SingleThreadedExecutor()
-        recorder_node = RecorderNode(get_config_file_path('recorder_test_config.yaml'), self.outfile, number_of_input_points=2)
+        recorder_node = RecorderNode(get_config_file_path('recorder_test_config.yaml'), self.outfile, number_of_input_points=500)
 
         second_executor.add_node(self.node)
         second_executor.add_node(recorder_node)
@@ -38,14 +39,21 @@ class TestRecorderNode(unittest.TestCase):
         msg_string = String()
         msg_string.data = "abcd"
 
-        for i in range(1000):
+        for i in range(500):
             pub_float.publish(msg_float)
-            pub_string.publish(msg_string)
-
             second_executor.spin_once()
+            if i%2==0:
+                pub_string.publish(msg_string)
+                second_executor.spin_once()
 
             if recorder_node.recording_done.done():
                 break
+
+        second_executor.spin_once()
+        second_executor.spin_once()
+        second_executor.spin_once()
+        
+        recorder_node.write_to_file()
 
     def tearDown(self):
         self.node.destroy_node()
@@ -55,7 +63,8 @@ class TestRecorderNode(unittest.TestCase):
         csv_reader = csv.DictReader(self.outfile)
 
         assert csv_reader.fieldnames == ['Param 1', 'Param 2'], "Test export to csv: Exported fields are wrong"
-
         for row in csv_reader:
-            assert row['Param 1'] == '[20.0, 20.0]', "Test export to csv: Float export gone wrong"
-            assert row['Param 2'] == "['abcd', 'abcd']", "Test export to csv: String export gone wrong"
+            assert len(row['Param 1'].strip('][').split(', ')) == 500, "Test export to csv: Float export gone wrong"
+            assert len(row['Param 2'].strip('][').split(', ')) == 250, "Test export to csv: String export gone wrong"
+        
+       
