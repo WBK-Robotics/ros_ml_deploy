@@ -3,10 +3,18 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to ros_ml_deploy's documentation!
+Welcome to ROSMLDeploy's documentation!
 =========================================
 
+ROSMLDeploy enables versatile and scalable implementation of processing functionality in ROS contexts. 
+It is aimed towards enabling deployment of machine learning models, but developers are free in the processes they want to implement. 
+It includes automatic setup of ROS topics, publishers, and subscribers from config files for both processing and recording of data.
+
 .. toctree::
+   :maxdepth: 2
+
+   getting_started
+   how_to_use
    code_docu
 
 
