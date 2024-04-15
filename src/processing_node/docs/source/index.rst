@@ -7,9 +7,7 @@ Welcome to ros_ml_deploy's documentation!
 =========================================
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
-
+   code_docu
 
 
 Indices and tables
