@@ -4,7 +4,7 @@ package_name = 'processing_node'
 
 setup(
     name=package_name,
-    version='0.0.0',
+    version='1.0.0',
     packages=find_packages(exclude=['test']),
     data_files=[
         ('share/' + package_name, ['package.xml']),
@@ -14,9 +14,9 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='root',
-    maintainer_email='root@todo.todo',
-    description='Processing node to subscribe to ROS topics to give out processed data',
+    maintainer='Marvin Frisch',
+    maintainer_email='marvin.frisch@kit.edu',
+    description='ROSMLDeploy enables building ML pipelines based on ROS2.',
     license='MIT',
     tests_require=['pytest'],
     entry_points={
