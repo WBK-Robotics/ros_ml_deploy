@@ -52,6 +52,14 @@ The processing node also supports the use of parameters. For this, the additiona
 The processing node automatically sets up ROS parameters with the same name as the given parameters and syncs changes between them, allowing for the change of parameters
 at runtime.
 
+The inner workings and connection between the processing node, the processor object and the ROS network are shown in the following figure.
+
+.. image:: figures/fx2.png 
+   :width: 600
+   :align: center
+   :alt: A diagram depicting the logical and data flow between the processing node, the processor object and the ROS network
+
+
 ---------
 Recording
 ---------

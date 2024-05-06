@@ -10,6 +10,13 @@ ROSMLDeploy enables versatile and scalable implementation of processing function
 It is aimed towards enabling deployment of machine learning models, but developers are free in the processes they want to implement. 
 It includes automatic setup of ROS topics, publishers, and subscribers from config files for both processing and recording of data.
 
+.. image:: figures/fx1.png 
+   :width: 600
+   :align: center
+   :alt: A diagram depicting the various use cases of nodes enabled by ROSMLDeploy for both preprocessing and processing task.
+
+The above figure showcases how nodes enabled by ROSMLDeploy can be used to handle all processing tasks necessary.
+
 .. toctree::
    :maxdepth: 2
 
