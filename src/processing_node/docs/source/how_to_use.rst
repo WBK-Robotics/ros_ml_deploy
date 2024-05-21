@@ -80,8 +80,7 @@ The inner workings and connection between the processing node, the processor obj
 Recording
 ---------
 
-Recording of data is handled by the :class:`procesing_node.procesing_node.RecorderNode`. If installed correctly, it can be started from the command line:
-
+Recording of data is handled by the :class:`processing_node.processing_node.RecorderNode`. If installed correctly, it can be started from the command line:
 ::
     ros2 run processing_node recorder --out_folder /path/to/output/folder --config_path /path/to/config --num 150
 ::
