@@ -18,3 +18,29 @@ git clone https://github.com/WBK-Robotics/ros_ml_deploy.git
 cd ros_ml_deploy
 pip install src/processing_node
 ```
+
+Starting from this, you can import the ProcessingNode into your python project using
+
+```python
+
+    from processing_node.processing_node import ProcessingNode
+```
+
+To use the RecorderNode, you need to additionally run
+```
+    source install/setup.bash
+```
+
+before running 
+
+```
+ros2 run processing_node recorder --out_folder /path/to/output/folder --config_path /path/to/config --num 150
+```
+
+with the following arguments:
+
+- out_folder: Path to output folder. Mandatory.
+
+- config_path: Path to config.yaml specifying the relevant Inputs. Mandatory.
+
+- num: Number of input points to record. Optional, defaults to "-1", i.e. record until manual stoppage.
