@@ -1,12 +1,12 @@
 Inputs:
   First number:
     Description: "First number to be added"
-    Topic: "number_publisher_topic"
+    Topic: "float_topic"
     Field: ["data"]
     MessageType: "Float32"
   Second number:
     Description: "Second number to be added"
-    Topic: "another_number_publisher_topic"
+    Topic: "int_topic"
     Field: ["data"]
     MessageType: "Int32"
 Outputs:
