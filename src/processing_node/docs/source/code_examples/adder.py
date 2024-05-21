@@ -6,7 +6,7 @@ from processing_node.processing_node import ProcessingNode
 class WeightedAdder():
 
     def __init__(self):
-        self.parameters = {"First multiplier": float, "Second multiplier": float}
+        self.parameters = {"float_multiplier": float, "int_multiplier": float}
     
     def get_parameters(self):
         return self.parameters
@@ -19,9 +19,9 @@ class WeightedAdder():
                 raise ValueError("The parameter {} is not supported by this processor".format(key))
     
     def execute(self, input_dict:dict) -> dict:
-        first_number = input_dict["First number"][-1]
-        second_number = input_dict["Second number"][-1]
-        weighted_sum = self.parameters["First multiplier"] * float(first_number) + self.parameters["Second multiplier"]*float(second_number)
+        float_number = input_dict["Float number"][-1]
+        int_number = input_dict["Int number"][-1]
+        weighted_sum = self.parameters["float_multiplier"] * float(float_number) + self.parameters["int_multiplier"]*float(int_number)
         return_dict = {"Weighted sum": weighted_sum}
         return return_dict
 
@@ -31,6 +31,6 @@ def main(args=None):
     adder_object = WeightedAdder()
     adder_node = ProcessingNode(adder_object, config_path, frequency=50, node_handle="adder_node")
 
-    adder_object.set_parameters({"First multiplier": 1, "Second multiplier": 2})
+    adder_object.set_parameters({"float_multiplier": 1, "int_multiplier": 2})
 
     rclpy.spin(adder_node)

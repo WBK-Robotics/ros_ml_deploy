@@ -13,7 +13,18 @@ Utilities needed for processing functionality are handled by the :class:`process
 To set it up, the constructor expects a processor object aswell as a config path. In the config, the inputs and outputs of the processing node and their 
 respective ROS topics are described. The processor object contains the main functionality of the node.
 
-As a an example, the setup code of a simple processing node may look as follows:
+As an example scenario, imagine there are two nodes publishing an integer and a float, respectively. Those could contain sensor data, preprocessing results, anything.
+The publishers could look like the following:
+
+.. literalinclude:: ./code_examples/number_publisher_int.py
+    :language: python
+    :linenos:
+
+.. literalinclude:: ./code_examples/number_publisher_float.py
+    :language: python
+    :linenos:
+
+A possible processing case could be to calculate a weighted sum of those two numbers. A processing node implementing that functionality would look like this:
 
 .. literalinclude:: ./code_examples/adder.py
     :language: python
@@ -52,6 +63,11 @@ The processing node also supports the use of parameters. For this, the additiona
 The processing node automatically sets up ROS parameters with the same name as the given parameters and syncs changes between them, allowing for the change of parameters
 at runtime.
 
+For our weighted adder example, one could change the weight of the integer at runtime using the following command:
+::
+    ros2 param set adder_node int_multiplier 4.0
+::
+
 The inner workings and connection between the processing node, the processor object and the ROS network are shown in the following figure.
 
 .. image:: figures/fx2.png 
@@ -66,7 +82,9 @@ Recording
 
 Recording of data is handled by the :class:`procesing_node.procesing_node.RecorderNode`. If installed correctly, it can be started from the command line:
 
-``ros2 run processing_node recorder --out_folder /path/to/output/folder --config_path /path/to/config --num 150``
+::
+    ros2 run processing_node recorder --out_folder /path/to/output/folder --config_path /path/to/config --num 150
+::
 
 It accepts the following arguments:
 
