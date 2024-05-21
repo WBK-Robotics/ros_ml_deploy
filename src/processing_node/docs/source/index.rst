@@ -7,7 +7,8 @@ Welcome to ROSMLDeploy's documentation!
 =========================================
 
 ROSMLDeploy enables versatile and scalable implementation of processing functionality in ROS contexts. 
-It is aimed towards enabling deployment of machine learning models, but developers are free in the processes they want to implement. 
+It is aimed towards enabling deployment of machine learning models, but developers are free in the processes they want to implement.
+Its target audience is developers already familiar with the core concepts of ROS who want to easily implement function pipelines. 
 It includes automatic setup of ROS topics, publishers, and subscribers from config files for both processing and recording of data.
 
 .. image:: figures/fx1.png 
