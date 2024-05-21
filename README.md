@@ -19,12 +19,16 @@ cd ros_ml_deploy
 pip install src/processing_node
 ```
 
+#### Importing the ProcessingNode
+
 Starting from this, you can import the ProcessingNode into your python project using
 
 ```python
 
     from processing_node.processing_node import ProcessingNode
 ```
+
+#### Using the RecorderNode
 
 To use the RecorderNode, you need to additionally run
 ```
