@@ -1,0 +1,24 @@
+Inputs:
+  Float number:
+    Description: "First number to be added"
+    Topic: "float_topic"
+    Field: ["data"]
+    MessageType: "Float32"
+  Int number:
+    Description: "Second number to be added"
+    Topic: "int_topic"
+    Field: ["data"]
+    MessageType: "Int32"
+Outputs:
+  Weighted sum:
+    Description: "Weighted sum of the number inputs"
+    Topic: "weighted_sum_topic"
+    Field: ["data"]
+    MessageType: "Float32"
+Imports: 
+  Float32:
+    Package: "std_msgs.msg"
+    Module: "Float32"
+  Int32:
+    Package: "std_msgs.msg"
+    Module: "Int32"

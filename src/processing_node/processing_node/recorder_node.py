@@ -24,8 +24,6 @@ class RecorderNode(ConfigHandlerNode):
     the there published data into an outfile
 
     Attributes:
-        outfile (StringIO): File-like Object to write the data into
-
         recording_done (Future): Future object that is set to done when the number of
         input points set during construction or by altering of the respective ROS-parameter
         is reached and allows termination of node execution
